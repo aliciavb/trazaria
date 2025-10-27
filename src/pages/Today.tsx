@@ -4,11 +4,13 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
 import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -187,20 +189,31 @@ const Today = () => {
                     <div className="flex items-center gap-2">
                       <p className="text-sm text-muted-foreground">Calorías de hoy</p>
                       {profile && (
-                        <TooltipProvider>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Button variant="ghost" size="icon" className="h-5 w-5 p-0">
-                                <Info className="h-4 w-4 text-muted-foreground" />
-                              </Button>
-                            </TooltipTrigger>
-                            <TooltipContent side="bottom" className="max-w-sm p-4">
-                              <pre className="text-xs whitespace-pre-wrap font-mono">
-                                {getCalorieFormulaExplanation(profile, targetKcal)}
-                              </pre>
-                            </TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
+                        <Dialog>
+                          <DialogTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-5 w-5 p-0 hover:bg-primary/10">
+                              <Info className="h-4 w-4 text-muted-foreground hover:text-primary transition-colors" />
+                            </Button>
+                          </DialogTrigger>
+                          <DialogContent className="max-w-md">
+                            <DialogHeader>
+                              <DialogTitle>Cálculo de tu objetivo diario</DialogTitle>
+                              <DialogDescription>
+                                Fórmula Mifflin-St Jeor (1990)
+                              </DialogDescription>
+                            </DialogHeader>
+                            <div className="space-y-3">
+                              <div className="p-4 bg-muted/50 rounded-lg">
+                                <pre className="text-xs whitespace-pre-wrap font-mono leading-relaxed">
+                                  {getCalorieFormulaExplanation(profile, targetKcal)}
+                                </pre>
+                              </div>
+                              <p className="text-xs text-muted-foreground">
+                                📚 Referencia: Mifflin MD, St Jeor ST, et al. "A new predictive equation for resting energy expenditure in healthy individuals." Am J Clin Nutr. 1990;51(2):241-7.
+                              </p>
+                            </div>
+                          </DialogContent>
+                        </Dialog>
                       )}
                     </div>
                     <p className="text-3xl font-bold text-foreground">
