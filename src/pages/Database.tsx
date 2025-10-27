@@ -355,6 +355,33 @@ const Database = () => {
             </p>
           </div>
 
+          {/* Banner informativo sobre origen de datos */}
+          <Card className="p-4 bg-blue-500/5 border-blue-500/20">
+            <div className="flex gap-3">
+              <AlertCircle className="w-5 h-5 text-blue-500 flex-shrink-0 mt-0.5" />
+              <div className="space-y-2 text-sm">
+                <p className="font-medium text-foreground">
+                  Transparencia total: Origen de los datos
+                </p>
+                <p className="text-muted-foreground">
+                  Trazaria incluye ~50 alimentos básicos extraídos de{' '}
+                  <a 
+                    href="https://www.bedca.net/" 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="text-blue-500 hover:underline font-medium"
+                  >
+                    BEDCA (Base Española de Datos de Composición de Alimentos)
+                  </a>
+                  , una base de datos pública del Ministerio de Ciencia. Los valores nutricionales pueden tener una variabilidad del 10-20% según la variedad del alimento.
+                </p>
+                <p className="text-muted-foreground">
+                  <strong>Tienes control total:</strong> Puedes editar, modificar o eliminar cualquier alimento, incluidos los que vienen por defecto. También puedes añadir los tuyos propios o usar el escáner de códigos de barras para buscar en Open Food Facts.
+                </p>
+              </div>
+            </div>
+          </Card>
+
           <Tabs defaultValue="foods" className="w-full">
             <TabsList className="grid w-full grid-cols-3">
               <TabsTrigger value="foods">Alimentos</TabsTrigger>
@@ -440,7 +467,21 @@ const Database = () => {
 
                           <div className="flex gap-2 flex-wrap">
                             <Badge variant="secondary">{food.category}</Badge>
-                            <Badge variant="outline">{food.source}</Badge>
+                            {food.source === 'BEDCA' && (
+                              <Badge variant="outline" className="bg-blue-500/10 text-blue-600 border-blue-500/20">
+                                📚 BEDCA
+                              </Badge>
+                            )}
+                            {food.source === 'barcode' && (
+                              <Badge variant="outline" className="bg-green-500/10 text-green-600 border-green-500/20">
+                                🏷️ Open Food Facts
+                              </Badge>
+                            )}
+                            {food.source === 'custom' && (
+                              <Badge variant="outline" className="bg-purple-500/10 text-purple-600 border-purple-500/20">
+                                ✏️ Personalizado
+                              </Badge>
+                            )}
                           </div>
 
                           <div className="grid grid-cols-4 gap-2 text-sm pt-2">
@@ -564,11 +605,22 @@ const Database = () => {
               <Card className="p-6 bg-gradient-card border-primary/20">
                 <div className="flex gap-3">
                   <CheckCircle2 className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
-                  <div className="space-y-1">
-                    <h3 className="font-semibold">Tus datos son tuyos</h3>
-                    <p className="text-sm text-muted-foreground">
-                      Todo se almacena localmente en tu dispositivo. Puedes exportar, importar o eliminar tus datos cuando quieras. Trazaria no tiene acceso a ellos.
-                    </p>
+                  <div className="space-y-2">
+                    <h3 className="font-semibold">Control total de tus datos</h3>
+                    <div className="text-sm text-muted-foreground space-y-1">
+                      <p>
+                        ✓ <strong>100% local:</strong> Todo se almacena en tu dispositivo (IndexedDB). Ni siquiera necesitas internet.
+                      </p>
+                      <p>
+                        ✓ <strong>Sin nube:</strong> Trazaria no tiene servidores. Nadie tiene acceso a tu información.
+                      </p>
+                      <p>
+                        ✓ <strong>Portabilidad:</strong> Exporta/importa en JSON estándar. Tus datos no están "encerrados".
+                      </p>
+                      <p>
+                        ✓ <strong>Modificable:</strong> Edita o elimina cualquier alimento, incluso los que vienen por defecto de BEDCA.
+                      </p>
+                    </div>
                   </div>
                 </div>
               </Card>
@@ -818,9 +870,16 @@ const Database = () => {
       <AlertDialog open={deleteFood !== null} onOpenChange={(open) => !open && setDeleteFood(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>¿Eliminar alimento?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Se eliminará "{deleteFood?.name}" de tu base de datos. Esta acción no se puede deshacer.
+            <AlertDialogTitle>¿Eliminar "{deleteFood?.name}"?</AlertDialogTitle>
+            <AlertDialogDescription className="space-y-2">
+              <p>
+                Se eliminará este alimento de tu base de datos personal. Esta acción no se puede deshacer.
+              </p>
+              {deleteFood?.source === 'BEDCA' && (
+                <p className="text-blue-600 dark:text-blue-400 text-sm">
+                  ℹ️ Este alimento viene de BEDCA, pero tienes control total: puedes eliminarlo o modificarlo según tus necesidades.
+                </p>
+              )}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
