@@ -2,12 +2,95 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import BottomNav from '@/components/BottomNav';
-import { Database, Download, Upload, Trash2, Lock, Moon, Sun } from 'lucide-react';
+import { Database, Download, Upload, Trash2, Lock, Moon, Sun, User, RefreshCw } from 'lucide-react';
 import { useTheme } from '@/hooks/use-theme';
+import { db } from '@/lib/db';
+import { calculateDailyCalories, CalorieParams } from '@/lib/calories';
+import { useToast } from '@/hooks/use-toast';
+import { useState, useEffect } from 'react';
 
 const Settings = () => {
   const { theme, toggleTheme } = useTheme();
+  const { toast } = useToast();
+  const [editProfileOpen, setEditProfileOpen] = useState(false);
+  const [profile, setProfile] = useState<CalorieParams | null>(null);
+  
+  // Estados del formulario
+  const [age, setAge] = useState('');
+  const [sex, setSex] = useState<'male' | 'female' | 'non-binary' | 'prefer-not-to-say'>('female');
+  const [height, setHeight] = useState('');
+  const [weight, setWeight] = useState('');
+  const [activityLevel, setActivityLevel] = useState<'sedentary' | 'light' | 'moderate' | 'active' | 'very-active'>('moderate');
+  const [goal, setGoal] = useState<'lose' | 'maintain' | 'gain'>('maintain');
+
+  useEffect(() => {
+    loadProfile();
+  }, []);
+
+  const loadProfile = async () => {
+    const userProfile = await db.profile.toArray();
+    if (userProfile.length > 0) {
+      const p = userProfile[0];
+      setProfile(p);
+      setAge(p.age.toString());
+      setSex(p.sex);
+      setHeight(p.height.toString());
+      setWeight(p.weight.toString());
+      setActivityLevel(p.activityLevel);
+      setGoal(p.goal);
+    }
+  };
+
+  const handleSaveProfile = async () => {
+    if (!age || !height || !weight) {
+      toast({
+        title: 'Faltan datos',
+        description: 'Por favor completa todos los campos',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    const newProfile: CalorieParams = {
+      age: parseInt(age),
+      sex,
+      height: parseInt(height),
+      weight: parseInt(weight),
+      activityLevel,
+      goal,
+    };
+
+    const newCalories = calculateDailyCalories(newProfile);
+
+    try {
+      await db.profile.clear();
+      await db.profile.add({
+        id: 'main',
+        ...newProfile,
+        dailyKcal: newCalories,
+        createdAt: new Date().toISOString(),
+      });
+
+      setProfile(newProfile);
+      setEditProfileOpen(false);
+
+      toast({
+        title: '✓ Perfil actualizado',
+        description: `Nuevo objetivo: ${newCalories} kcal/día`,
+      });
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'No se pudo actualizar el perfil',
+        variant: 'destructive',
+      });
+    }
+  };
 
   return (
     <>
@@ -19,6 +102,28 @@ const Settings = () => {
               Configuración y gestión de datos
             </p>
           </div>
+
+          <Card className="p-6 space-y-4 bg-gradient-card shadow-card">
+            <div className="flex items-center justify-between pb-4 border-b border-border">
+              <div className="flex items-center gap-3">
+                <User className="w-5 h-5 text-primary" />
+                <div>
+                  <h3 className="font-semibold">Perfil Personal</h3>
+                  <p className="text-sm text-muted-foreground">
+                    {profile ? `${profile.weight} kg • ${calculateDailyCalories(profile)} kcal/día` : 'No configurado'}
+                  </p>
+                </div>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setEditProfileOpen(true)}
+              >
+                <RefreshCw className="w-4 h-4 mr-2" />
+                Editar
+              </Button>
+            </div>
+          </Card>
 
           <Card className="p-6 space-y-4 bg-gradient-card shadow-card">
             <div className="flex items-center justify-between pb-4 border-b border-border">
@@ -96,6 +201,128 @@ const Settings = () => {
           </div>
         </div>
       </div>
+
+      {/* Dialog para editar perfil */}
+      <Dialog open={editProfileOpen} onOpenChange={setEditProfileOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Editar Perfil Personal</DialogTitle>
+            <DialogDescription>
+              Actualiza tus datos para recalcular tu objetivo calórico diario
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="age">Edad</Label>
+                <Input
+                  id="age"
+                  type="number"
+                  value={age}
+                  onChange={(e) => setAge(e.target.value)}
+                  placeholder="30"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="sex">Sexo</Label>
+                <Select value={sex} onValueChange={(v) => setSex(v as any)}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="female">Mujer</SelectItem>
+                    <SelectItem value="male">Hombre</SelectItem>
+                    <SelectItem value="non-binary">No binario</SelectItem>
+                    <SelectItem value="prefer-not-to-say">Prefiero no decir</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="height">Altura (cm)</Label>
+                <Input
+                  id="height"
+                  type="number"
+                  value={height}
+                  onChange={(e) => setHeight(e.target.value)}
+                  placeholder="165"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="weight">Peso (kg)</Label>
+                <Input
+                  id="weight"
+                  type="number"
+                  step="0.1"
+                  value={weight}
+                  onChange={(e) => setWeight(e.target.value)}
+                  placeholder="65"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="activity">Nivel de actividad</Label>
+              <Select value={activityLevel} onValueChange={(v) => setActivityLevel(v as any)}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="sedentary">Sedentario (poco/nada ejercicio)</SelectItem>
+                  <SelectItem value="light">Ligero (1-3 días/semana)</SelectItem>
+                  <SelectItem value="moderate">Moderado (3-5 días/semana)</SelectItem>
+                  <SelectItem value="active">Activo (6-7 días/semana)</SelectItem>
+                  <SelectItem value="very-active">Muy activo (ejercicio intenso + trabajo físico)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="goal">Objetivo</Label>
+              <Select value={goal} onValueChange={(v) => setGoal(v as any)}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="lose">Perder peso (-300 kcal/día)</SelectItem>
+                  <SelectItem value="maintain">Mantener peso</SelectItem>
+                  <SelectItem value="gain">Ganar peso (+300 kcal/día)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {age && height && weight && (
+              <div className="p-3 bg-muted rounded-md">
+                <p className="text-sm text-muted-foreground">
+                  Nuevo objetivo: <span className="font-semibold text-foreground">
+                    {calculateDailyCalories({
+                      age: parseInt(age),
+                      sex,
+                      height: parseInt(height),
+                      weight: parseInt(weight),
+                      activityLevel,
+                      goal,
+                    })} kcal/día
+                  </span>
+                </p>
+              </div>
+            )}
+
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={() => setEditProfileOpen(false)} className="flex-1">
+                Cancelar
+              </Button>
+              <Button onClick={handleSaveProfile} className="flex-1">
+                Guardar
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       <BottomNav />
     </>
   );

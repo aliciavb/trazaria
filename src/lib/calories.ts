@@ -18,7 +18,7 @@ const ACTIVITY_MULTIPLIERS = {
 };
 
 const GOAL_ADJUSTMENTS = {
-  lose: -500, // Deficit of 500 kcal for ~0.5kg loss per week
+  lose: -300, // Deficit of 300 kcal for ~0.3kg loss per week (más sostenible)
   maintain: 0,
   gain: 300, // Surplus of 300 kcal for slow gain
 };
