@@ -361,7 +361,7 @@ const Database = () => {
               <AlertCircle className="w-5 h-5 text-blue-500 flex-shrink-0 mt-0.5" />
               <div className="space-y-2 text-sm">
                 <p className="font-medium text-foreground">
-                  Transparencia total: Origen de los datos
+                  Origen de los datos
                 </p>
                 <p className="text-muted-foreground">
                   Trazaria incluye ~50 alimentos básicos extraídos de{' '}
@@ -371,12 +371,12 @@ const Database = () => {
                     rel="noopener noreferrer"
                     className="text-blue-500 hover:underline font-medium"
                   >
-                    BEDCA (Base Española de Datos de Composición de Alimentos)
+                    BEDCA
                   </a>
-                  , una base de datos pública del Ministerio de Ciencia. Los valores nutricionales pueden tener una variabilidad del 10-20% según la variedad del alimento.
+                  , la base de datos pública del Ministerio de Ciencia. Los valores nutricionales pueden tener una variabilidad del 10-20% según el alimento.
                 </p>
                 <p className="text-muted-foreground">
-                  <strong>Tienes control total:</strong> Puedes editar, modificar o eliminar cualquier alimento, incluidos los que vienen por defecto. También puedes añadir los tuyos propios o usar el escáner de códigos de barras para buscar en Open Food Facts.
+                  Puedes <strong>añadir, modificar o eliminar</strong> cualquier alimento.
                 </p>
               </div>
             </div>
