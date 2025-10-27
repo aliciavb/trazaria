@@ -81,6 +81,12 @@ export interface Entry {
   mood?: string;
   energy?: number;
   satiety?: number;
+  wellbeing?: {
+    hunger: 'very-hungry' | 'hungry' | 'satisfied' | 'full' | 'very-full';
+    energy?: 'low' | 'normal' | 'high';
+    mood?: 'bad' | 'neutral' | 'good';
+    notes?: string;
+  };
 }
 
 // Dexie Database Class

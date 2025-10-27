@@ -29,7 +29,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { db, Entry, UserProfile } from '@/lib/db';
 import { getCalorieFormulaExplanation } from '@/lib/calories';
-import { Apple, Coffee, Sunset, Cookie, Flame, MoreVertical, Trash2, Copy, Info } from 'lucide-react';
+import { Apple, Coffee, Sunset, Cookie, Flame, MoreVertical, Trash2, Copy, Info, Smile, Meh, Frown, SmilePlus, Pizza } from 'lucide-react';
 import BottomNav from '@/components/BottomNav';
 import { useToast } from '@/hooks/use-toast';
 
@@ -69,6 +69,7 @@ const Today = () => {
   const [loading, setLoading] = useState(true);
   const [deleteDialog, setDeleteDialog] = useState<string | null>(null);
   const [foodNames, setFoodNames] = useState<Record<string, string>>({});
+  const [dayHunger, setDayHunger] = useState<'very-hungry' | 'hungry' | 'satisfied' | 'full' | 'very-full' | null>(null);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -338,6 +339,73 @@ const Today = () => {
                 );
               })}
             </div>
+          )}
+
+          {/* Bienestar del día */}
+          {entries.length > 0 && (
+            <Card className="p-6 bg-gradient-card shadow-card">
+              <div className="space-y-4">
+                <div>
+                  <h3 className="font-semibold mb-2">¿Cómo te has sentido hoy?</h3>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Nivel de saciedad después de tus comidas
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-5 gap-2">
+                  <Button
+                    variant={dayHunger === 'very-hungry' ? 'default' : 'outline'}
+                    className="flex-col h-auto py-3 px-2"
+                    onClick={() => setDayHunger('very-hungry')}
+                  >
+                    <Frown className="w-6 h-6 mb-1" />
+                    <span className="text-xs">Mucha hambre</span>
+                  </Button>
+
+                  <Button
+                    variant={dayHunger === 'hungry' ? 'default' : 'outline'}
+                    className="flex-col h-auto py-3 px-2"
+                    onClick={() => setDayHunger('hungry')}
+                  >
+                    <Meh className="w-6 h-6 mb-1" />
+                    <span className="text-xs">Algo de hambre</span>
+                  </Button>
+
+                  <Button
+                    variant={dayHunger === 'satisfied' ? 'default' : 'outline'}
+                    className="flex-col h-auto py-3 px-2"
+                    onClick={() => setDayHunger('satisfied')}
+                  >
+                    <Smile className="w-6 h-6 mb-1" />
+                    <span className="text-xs">Saciado</span>
+                  </Button>
+
+                  <Button
+                    variant={dayHunger === 'full' ? 'default' : 'outline'}
+                    className="flex-col h-auto py-3 px-2"
+                    onClick={() => setDayHunger('full')}
+                  >
+                    <SmilePlus className="w-6 h-6 mb-1" />
+                    <span className="text-xs">Lleno</span>
+                  </Button>
+
+                  <Button
+                    variant={dayHunger === 'very-full' ? 'default' : 'outline'}
+                    className="flex-col h-auto py-3 px-2"
+                    onClick={() => setDayHunger('very-full')}
+                  >
+                    <Pizza className="w-6 h-6 mb-1" />
+                    <span className="text-xs">Muy lleno</span>
+                  </Button>
+                </div>
+
+                {dayHunger && (
+                  <p className="text-xs text-center text-muted-foreground">
+                    ✓ Guardado automáticamente
+                  </p>
+                )}
+              </div>
+            </Card>
           )}
         </div>
       </div>

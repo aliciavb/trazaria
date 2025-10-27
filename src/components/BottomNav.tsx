@@ -10,7 +10,7 @@ const BottomNav = () => {
 
   const navItems = [
     { path: '/today', icon: Home, label: 'Hoy' },
-    { path: '/week', icon: BarChart3, label: 'Semana' },
+    { path: '/overview', icon: BarChart3, label: 'Resumen' },
     { path: '/', icon: Plus, label: 'Registrar', isPrimary: true },
     { path: '/database', icon: Database, label: 'Base' },
     { path: '/settings', icon: Settings, label: 'Ajustes' },

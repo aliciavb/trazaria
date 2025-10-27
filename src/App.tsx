@@ -9,6 +9,7 @@ import Onboarding from "./pages/Onboarding";
 import Today from "./pages/Today";
 import Calendar from "./pages/Calendar";
 import Week from "./pages/Week";
+import Overview from "./pages/Overview";
 import Database from "./pages/Database";
 import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
@@ -28,6 +29,7 @@ const App = () => (
             <Route path="/today" element={<Today />} />
             <Route path="/calendar" element={<Calendar />} />
             <Route path="/week" element={<Week />} />
+            <Route path="/overview" element={<Overview />} />
             <Route path="/database" element={<Database />} />
             <Route path="/settings" element={<Settings />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
