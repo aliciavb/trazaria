@@ -1,0 +1,55 @@
+// Calculate daily calorie needs using Mifflin-St Jeor Equation
+
+export interface CalorieParams {
+  age: number;
+  sex: 'male' | 'female' | 'non-binary' | 'prefer-not-to-say';
+  height: number; // cm
+  weight: number; // kg
+  activityLevel: 'sedentary' | 'light' | 'moderate' | 'active' | 'very-active';
+  goal: 'lose' | 'maintain' | 'gain';
+}
+
+const ACTIVITY_MULTIPLIERS = {
+  sedentary: 1.2, // Little or no exercise
+  light: 1.375, // Light exercise 1-3 days/week
+  moderate: 1.55, // Moderate exercise 3-5 days/week
+  active: 1.725, // Hard exercise 6-7 days/week
+  'very-active': 1.9, // Very hard exercise & physical job
+};
+
+const GOAL_ADJUSTMENTS = {
+  lose: -500, // Deficit of 500 kcal for ~0.5kg loss per week
+  maintain: 0,
+  gain: 300, // Surplus of 300 kcal for slow gain
+};
+
+export function calculateDailyCalories(params: CalorieParams): number {
+  const { age, sex, height, weight, activityLevel, goal } = params;
+
+  // Mifflin-St Jeor Equation for BMR (Basal Metabolic Rate)
+  let bmr: number;
+
+  if (sex === 'female') {
+    bmr = 10 * weight + 6.25 * height - 5 * age - 161;
+  } else {
+    // Use male formula for male, non-binary, and prefer-not-to-say
+    // This is a simplification; ideally we'd offer more personalization
+    bmr = 10 * weight + 6.25 * height - 5 * age + 5;
+  }
+
+  // Calculate TDEE (Total Daily Energy Expenditure)
+  const tdee = bmr * ACTIVITY_MULTIPLIERS[activityLevel];
+
+  // Apply goal adjustment
+  const adjusted = tdee + GOAL_ADJUSTMENTS[goal];
+
+  // Round to nearest 50 kcal for cleaner numbers
+  return Math.round(adjusted / 50) * 50;
+}
+
+export function calculateFoodCalories(
+  grams: number,
+  nutritionPer100: { kcal: number }
+): number {
+  return Math.round((grams / 100) * nutritionPer100.kcal);
+}

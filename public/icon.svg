@@ -1,0 +1,21 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Fondo verde suave -->
+  <rect width="512" height="512" rx="128" fill="#8FAE9D"/>
+  
+  <!-- Hoja estilizada (símbolo de trazabilidad orgánica) -->
+  <path d="M256 120C256 120 180 160 180 260C180 340 230 400 256 400C282 400 332 340 332 260C332 160 256 120 256 120Z" fill="#F8FAF9" stroke="#5A7A66" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+  
+  <!-- Nervio central de la hoja -->
+  <line x1="256" y1="140" x2="256" y2="380" stroke="#5A7A66" stroke-width="6" stroke-linecap="round"/>
+  
+  <!-- Nervios laterales -->
+  <path d="M256 180 L220 200" stroke="#5A7A66" stroke-width="4" stroke-linecap="round"/>
+  <path d="M256 220 L215 240" stroke="#5A7A66" stroke-width="4" stroke-linecap="round"/>
+  <path d="M256 260 L210 280" stroke="#5A7A66" stroke-width="4" stroke-linecap="round"/>
+  <path d="M256 300 L220 320" stroke="#5A7A66" stroke-width="4" stroke-linecap="round"/>
+  
+  <path d="M256 180 L292 200" stroke="#5A7A66" stroke-width="4" stroke-linecap="round"/>
+  <path d="M256 220 L297 240" stroke="#5A7A66" stroke-width="4" stroke-linecap="round"/>
+  <path d="M256 260 L302 280" stroke="#5A7A66" stroke-width="4" stroke-linecap="round"/>
+  <path d="M256 300 L292 320" stroke="#5A7A66" stroke-width="4" stroke-linecap="round"/>
+</svg>
