@@ -8,76 +8,78 @@ All colors MUST be HSL.
 
 @layer base {
   :root {
-    --background: 40 10% 97%;
-    --foreground: 25 25% 15%;
+    /* Tonos naturales tierra-verde */
+    --background: 140 15% 97%;  /* Verde muy claro, natural */
+    --foreground: 150 30% 20%;  /* Verde oscuro para texto */
 
     --card: 0 0% 100%;
-    --card-foreground: 25 25% 15%;
+    --card-foreground: 150 30% 20%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 25 25% 15%;
+    --popover-foreground: 150 30% 20%;
 
-    --primary: 25 95% 53%;
+    --primary: 150 20% 60%;     /* Verde principal del icono #8FAE9D */
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 140 45% 50%;
+    --secondary: 150 25% 45%;   /* Verde más oscuro #5A7A66 */
     --secondary-foreground: 0 0% 100%;
 
-    --muted: 40 10% 90%;
-    --muted-foreground: 25 10% 45%;
+    --muted: 140 15% 92%;       /* Verde muy suave */
+    --muted-foreground: 150 15% 40%;
 
-    --accent: 140 45% 50%;
+    --accent: 150 20% 60%;      /* Mismo que primary */
     --accent-foreground: 0 0% 100%;
 
-    --destructive: 0 84.2% 60.2%;
+    --destructive: 0 70% 55%;   /* Rojo tierra natural */
     --destructive-foreground: 0 0% 100%;
 
-    --border: 40 10% 85%;
-    --input: 40 10% 85%;
-    --ring: 25 95% 53%;
+    --border: 140 15% 88%;      /* Borde verde muy suave */
+    --input: 140 15% 88%;
+    --ring: 150 20% 60%;
 
     --radius: 0.75rem;
 
-    /* Custom design tokens */
-    --gradient-warm: linear-gradient(135deg, hsl(25 95% 53%) 0%, hsl(15 90% 55%) 100%);
-    --gradient-card: linear-gradient(180deg, hsl(0 0% 100%) 0%, hsl(40 10% 98%) 100%);
-    --shadow-card: 0 2px 8px -2px hsl(25 25% 15% / 0.08);
-    --shadow-elevated: 0 8px 24px -4px hsl(25 25% 15% / 0.12);
+    /* Custom design tokens - tonos naturales */
+    --gradient-warm: linear-gradient(135deg, hsl(150 20% 60%) 0%, hsl(150 25% 55%) 100%);
+    --gradient-card: linear-gradient(180deg, hsl(0 0% 100%) 0%, hsl(140 15% 98%) 100%);
+    --shadow-card: 0 2px 8px -2px hsl(150 30% 20% / 0.08);
+    --shadow-elevated: 0 8px 24px -4px hsl(150 30% 20% / 0.12);
     --transition-smooth: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   }
 
   .dark {
-    --background: 25 15% 8%;
-    --foreground: 40 10% 95%;
+    /* Modo oscuro con tonos tierra */
+    --background: 150 15% 10%;
+    --foreground: 140 15% 92%;
 
-    --card: 25 12% 12%;
-    --card-foreground: 40 10% 95%;
+    --card: 150 12% 14%;
+    --card-foreground: 140 15% 92%;
 
-    --popover: 25 12% 12%;
-    --popover-foreground: 40 10% 95%;
+    --popover: 150 12% 14%;
+    --popover-foreground: 140 15% 92%;
 
-    --primary: 25 95% 58%;
-    --primary-foreground: 25 15% 8%;
+    --primary: 150 20% 65%;     /* Verde más claro en dark */
+    --primary-foreground: 150 15% 10%;
 
-    --secondary: 140 45% 45%;
+    --secondary: 150 25% 50%;
     --secondary-foreground: 0 0% 100%;
 
-    --muted: 25 10% 18%;
-    --muted-foreground: 40 8% 60%;
+    --muted: 150 10% 20%;
+    --muted-foreground: 140 12% 65%;
 
-    --accent: 140 45% 45%;
-    --accent-foreground: 0 0% 100%;
+    --accent: 150 20% 65%;
+    --accent-foreground: 150 15% 10%;
 
-    --destructive: 0 72% 51%;
+    --destructive: 0 65% 50%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 25 10% 22%;
-    --input: 25 10% 22%;
-    --ring: 25 95% 58%;
+    --border: 150 10% 24%;
+    --input: 150 10% 24%;
+    --ring: 150 20% 65%;
 
     /* Dark mode custom tokens */
-    --gradient-warm: linear-gradient(135deg, hsl(25 95% 58%) 0%, hsl(15 90% 60%) 100%);
-    --gradient-card: linear-gradient(180deg, hsl(25 12% 12%) 0%, hsl(25 12% 10%) 100%);
+    --gradient-warm: linear-gradient(135deg, hsl(150 20% 65%) 0%, hsl(150 25% 60%) 100%);
+    --gradient-card: linear-gradient(180deg, hsl(150 12% 14%) 0%, hsl(150 12% 12%) 100%);
     --shadow-card: 0 2px 8px -2px hsl(0 0% 0% / 0.3);
     --shadow-elevated: 0 8px 24px -4px hsl(0 0% 0% / 0.4);
   }
