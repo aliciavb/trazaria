@@ -6,9 +6,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { db, UserProfile } from '@/lib/db';
-import { calculateDailyCalories } from '@/lib/calories';
+import { calculateDailyCalories, getCalorieFormulaExplanation } from '@/lib/calories';
 import { useToast } from '@/hooks/use-toast';
-import { ArrowRight, User } from 'lucide-react';
+import { ArrowRight, User, Calculator } from 'lucide-react';
 import { z } from 'zod';
 
 const profileSchema = z.object({
@@ -227,6 +227,85 @@ const Onboarding = () => {
             <div className="flex gap-3">
               <Button
                 onClick={() => setStep(1)}
+                variant="outline"
+                size="lg"
+                className="flex-1"
+              >
+                Atrás
+              </Button>
+              <Button
+                onClick={() => setStep(3)}
+                className="flex-1 bg-gradient-warm"
+                size="lg"
+              >
+                Ver mi objetivo
+              </Button>
+            </div>
+          </Card>
+        )}
+
+        {step === 3 && (
+          <Card className="p-6 space-y-6 bg-gradient-card shadow-elevated">
+            <div className="space-y-4">
+              <div className="text-center space-y-2">
+                <div className="inline-flex items-center justify-center w-14 h-14 rounded-full bg-gradient-warm mb-2">
+                  <Calculator className="w-7 h-7 text-white" />
+                </div>
+                <h2 className="text-xl font-semibold">Tu objetivo diario calculado</h2>
+              </div>
+
+              <div className="p-4 bg-primary/5 rounded-lg border border-primary/20">
+                <p className="text-center text-4xl font-bold text-primary">
+                  {calculateDailyCalories({
+                    age: parseInt(age),
+                    sex,
+                    height: parseInt(height),
+                    weight: parseFloat(weight),
+                    goal,
+                    activityLevel,
+                  })} kcal/día
+                </p>
+              </div>
+
+              <div className="space-y-3">
+                <h3 className="font-semibold text-sm">Cómo calculamos tu objetivo:</h3>
+                <div className="p-4 bg-muted/50 rounded-lg">
+                  <pre className="text-xs whitespace-pre-wrap font-mono leading-relaxed">
+                    {getCalorieFormulaExplanation(
+                      {
+                        age: parseInt(age),
+                        sex,
+                        height: parseInt(height),
+                        weight: parseFloat(weight),
+                        goal,
+                        activityLevel,
+                      },
+                      calculateDailyCalories({
+                        age: parseInt(age),
+                        sex,
+                        height: parseInt(height),
+                        weight: parseFloat(weight),
+                        goal,
+                        activityLevel,
+                      })
+                    )}
+                  </pre>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  📚 Referencia: Mifflin MD, St Jeor ST, et al. "A new predictive equation for resting energy expenditure in healthy individuals." Am J Clin Nutr. 1990;51(2):241-7.
+                </p>
+              </div>
+
+              <div className="p-3 bg-blue-500/10 rounded-lg border border-blue-500/20">
+                <p className="text-xs text-blue-700 dark:text-blue-300">
+                  💡 Puedes ajustar manualmente este valor en cualquier momento desde Configuración si prefieres establecer tu propio objetivo.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex gap-3">
+              <Button
+                onClick={() => setStep(2)}
                 variant="outline"
                 size="lg"
                 className="flex-1"

@@ -19,6 +19,9 @@ const Settings = () => {
   const { toast } = useToast();
   const [editProfileOpen, setEditProfileOpen] = useState(false);
   const [profile, setProfile] = useState<CalorieParams | null>(null);
+  const [currentDailyKcal, setCurrentDailyKcal] = useState<number>(0);
+  const [useManualKcal, setUseManualKcal] = useState(false);
+  const [manualKcal, setManualKcal] = useState('');
   
   // Estados del formulario
   const [age, setAge] = useState('');
@@ -37,6 +40,9 @@ const Settings = () => {
     if (userProfile.length > 0) {
       const p = userProfile[0];
       setProfile(p);
+      setCurrentDailyKcal(p.manualKcal || p.dailyKcal);
+      setUseManualKcal(!!p.manualKcal);
+      setManualKcal(p.manualKcal?.toString() || '');
       setAge(p.age.toString());
       setSex(p.sex);
       setHeight(p.height.toString());
@@ -56,6 +62,15 @@ const Settings = () => {
       return;
     }
 
+    if (useManualKcal && (!manualKcal || parseInt(manualKcal) < 1000 || parseInt(manualKcal) > 5000)) {
+      toast({
+        title: 'Valor inválido',
+        description: 'El objetivo manual debe estar entre 1000 y 5000 kcal',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     const newProfile: CalorieParams = {
       age: parseInt(age),
       sex,
@@ -65,23 +80,26 @@ const Settings = () => {
       goal,
     };
 
-    const newCalories = calculateDailyCalories(newProfile);
+    const calculatedCalories = calculateDailyCalories(newProfile);
+    const finalKcal = useManualKcal ? parseInt(manualKcal) : calculatedCalories;
 
     try {
       await db.profile.clear();
       await db.profile.add({
         id: 'main',
         ...newProfile,
-        dailyKcal: newCalories,
+        dailyKcal: calculatedCalories,
+        manualKcal: useManualKcal ? parseInt(manualKcal) : undefined,
         createdAt: new Date().toISOString(),
       });
 
       setProfile(newProfile);
+      setCurrentDailyKcal(finalKcal);
       setEditProfileOpen(false);
 
       toast({
         title: '✓ Perfil actualizado',
-        description: `Nuevo objetivo: ${newCalories} kcal/día`,
+        description: `Nuevo objetivo: ${finalKcal} kcal/día${useManualKcal ? ' (manual)' : ''}`,
       });
     } catch (error) {
       toast({
@@ -110,7 +128,7 @@ const Settings = () => {
                 <div>
                   <h3 className="font-semibold">Perfil Personal</h3>
                   <p className="text-sm text-muted-foreground">
-                    {profile ? `${profile.weight} kg • ${calculateDailyCalories(profile)} kcal/día` : 'No configurado'}
+                    {profile ? `${profile.weight} kg • ${currentDailyKcal} kcal/día${useManualKcal ? ' (manual)' : ''}` : 'No configurado'}
                   </p>
                 </div>
               </div>
@@ -294,10 +312,42 @@ const Settings = () => {
               </Select>
             </div>
 
-            {age && height && weight && (
+            <div className="space-y-3 p-4 bg-muted/50 rounded-lg border">
+              <div className="flex items-center justify-between">
+                <div className="space-y-1">
+                  <Label htmlFor="manualKcal">Objetivo manual</Label>
+                  <p className="text-xs text-muted-foreground">
+                    Establecer calorías diarias manualmente
+                  </p>
+                </div>
+                <Switch
+                  checked={useManualKcal}
+                  onCheckedChange={setUseManualKcal}
+                />
+              </div>
+              
+              {useManualKcal && (
+                <div className="space-y-2">
+                  <Input
+                    id="manualKcal"
+                    type="number"
+                    placeholder="2000"
+                    value={manualKcal}
+                    onChange={(e) => setManualKcal(e.target.value)}
+                    min="1000"
+                    max="5000"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Entre 1000 y 5000 kcal/día
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {age && height && weight && !useManualKcal && (
               <div className="p-3 bg-muted rounded-md">
                 <p className="text-sm text-muted-foreground">
-                  Nuevo objetivo: <span className="font-semibold text-foreground">
+                  Objetivo calculado: <span className="font-semibold text-foreground">
                     {calculateDailyCalories({
                       age: parseInt(age),
                       sex,
@@ -306,6 +356,16 @@ const Settings = () => {
                       activityLevel,
                       goal,
                     })} kcal/día
+                  </span>
+                </p>
+              </div>
+            )}
+
+            {useManualKcal && manualKcal && (
+              <div className="p-3 bg-primary/5 rounded-md border border-primary/20">
+                <p className="text-sm text-primary">
+                  Objetivo manual: <span className="font-semibold">
+                    {manualKcal} kcal/día
                   </span>
                 </p>
               </div>

@@ -4,6 +4,12 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
 import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -20,7 +26,8 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { db, Entry, UserProfile } from '@/lib/db';
-import { Apple, Coffee, Sunset, Cookie, Flame, MoreVertical, Trash2, Copy } from 'lucide-react';
+import { getCalorieFormulaExplanation } from '@/lib/calories';
+import { Apple, Coffee, Sunset, Cookie, Flame, MoreVertical, Trash2, Copy, Info } from 'lucide-react';
 import BottomNav from '@/components/BottomNav';
 import { useToast } from '@/hooks/use-toast';
 
@@ -138,7 +145,7 @@ const Today = () => {
   };
 
   const totalKcal = entries.reduce((sum, entry) => sum + (entry.totalKcal || 0), 0);
-  const targetKcal = profile?.dailyKcal || 2000;
+  const targetKcal = profile?.manualKcal || profile?.dailyKcal || 2000;
   const percentage = Math.min((totalKcal / targetKcal) * 100, 100);
 
   if (loading) {
@@ -177,7 +184,25 @@ const Today = () => {
               <div className="flex-1 space-y-2">
                 <div className="flex items-end justify-between">
                   <div>
-                    <p className="text-sm text-muted-foreground">Calorías de hoy</p>
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm text-muted-foreground">Calorías de hoy</p>
+                      {profile && (
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button variant="ghost" size="icon" className="h-5 w-5 p-0">
+                                <Info className="h-4 w-4 text-muted-foreground" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent side="bottom" className="max-w-sm p-4">
+                              <pre className="text-xs whitespace-pre-wrap font-mono">
+                                {getCalorieFormulaExplanation(profile, targetKcal)}
+                              </pre>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      )}
+                    </div>
                     <p className="text-3xl font-bold text-foreground">
                       {totalKcal} <span className="text-xl text-muted-foreground">/ {targetKcal}</span>
                     </p>

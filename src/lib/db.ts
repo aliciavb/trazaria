@@ -58,6 +58,7 @@ export interface UserProfile {
   goal: 'lose' | 'maintain' | 'gain';
   activityLevel: 'sedentary' | 'light' | 'moderate' | 'active' | 'very-active';
   dailyKcal: number;
+  manualKcal?: number; // If set, overrides calculated dailyKcal
   createdAt: string;
 }
 
