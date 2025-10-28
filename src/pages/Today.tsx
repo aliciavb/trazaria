@@ -356,47 +356,47 @@ const Today = () => {
                 <div className="grid grid-cols-5 gap-2">
                   <Button
                     variant={dayHunger === 'very-hungry' ? 'default' : 'outline'}
-                    className="flex-col h-auto py-3 px-2"
+                    className="flex-col h-auto py-3 px-1 min-h-[72px]"
                     onClick={() => setDayHunger('very-hungry')}
                   >
-                    <Frown className="w-6 h-6 mb-1" />
-                    <span className="text-xs">Mucha hambre</span>
+                    <Frown className="w-6 h-6 mb-1 flex-shrink-0" />
+                    <span className="text-[10px] leading-tight text-center">Mucha hambre</span>
                   </Button>
 
                   <Button
                     variant={dayHunger === 'hungry' ? 'default' : 'outline'}
-                    className="flex-col h-auto py-3 px-2"
+                    className="flex-col h-auto py-3 px-1 min-h-[72px]"
                     onClick={() => setDayHunger('hungry')}
                   >
-                    <Meh className="w-6 h-6 mb-1" />
-                    <span className="text-xs">Algo de hambre</span>
+                    <Meh className="w-6 h-6 mb-1 flex-shrink-0" />
+                    <span className="text-[10px] leading-tight text-center">Algo de hambre</span>
                   </Button>
 
                   <Button
                     variant={dayHunger === 'satisfied' ? 'default' : 'outline'}
-                    className="flex-col h-auto py-3 px-2"
+                    className="flex-col h-auto py-3 px-1 min-h-[72px]"
                     onClick={() => setDayHunger('satisfied')}
                   >
-                    <Smile className="w-6 h-6 mb-1" />
-                    <span className="text-xs">Saciado</span>
+                    <Smile className="w-6 h-6 mb-1 flex-shrink-0" />
+                    <span className="text-[10px] leading-tight text-center">Saciado</span>
                   </Button>
 
                   <Button
                     variant={dayHunger === 'full' ? 'default' : 'outline'}
-                    className="flex-col h-auto py-3 px-2"
+                    className="flex-col h-auto py-3 px-1 min-h-[72px]"
                     onClick={() => setDayHunger('full')}
                   >
-                    <SmilePlus className="w-6 h-6 mb-1" />
-                    <span className="text-xs">Lleno</span>
+                    <SmilePlus className="w-6 h-6 mb-1 flex-shrink-0" />
+                    <span className="text-[10px] leading-tight text-center">Lleno</span>
                   </Button>
 
                   <Button
                     variant={dayHunger === 'very-full' ? 'default' : 'outline'}
-                    className="flex-col h-auto py-3 px-2"
+                    className="flex-col h-auto py-3 px-1 min-h-[72px]"
                     onClick={() => setDayHunger('very-full')}
                   >
-                    <Pizza className="w-6 h-6 mb-1" />
-                    <span className="text-xs">Muy lleno</span>
+                    <Pizza className="w-6 h-6 mb-1 flex-shrink-0" />
+                    <span className="text-[10px] leading-tight text-center">Muy lleno</span>
                   </Button>
                 </div>
 

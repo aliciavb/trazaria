@@ -3,11 +3,21 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import BottomNav from '@/components/BottomNav';
-import { Database, Download, Upload, Trash2, Lock, Moon, Sun, User, RefreshCw } from 'lucide-react';
+import { Download, Upload, Trash2, Lock, Moon, Sun, User, RefreshCw } from 'lucide-react';
 import { useTheme } from '@/hooks/use-theme';
 import { db } from '@/lib/db';
 import { calculateDailyCalories, CalorieParams } from '@/lib/calories';
@@ -18,6 +28,8 @@ const Settings = () => {
   const { theme, toggleTheme } = useTheme();
   const { toast } = useToast();
   const [editProfileOpen, setEditProfileOpen] = useState(false);
+  const [deleteAllDialog, setDeleteAllDialog] = useState(false);
+  const [importDialog, setImportDialog] = useState(false);
   const [profile, setProfile] = useState<CalorieParams | null>(null);
   const [currentDailyKcal, setCurrentDailyKcal] = useState<number>(0);
   const [useManualKcal, setUseManualKcal] = useState(false);
@@ -110,6 +122,116 @@ const Settings = () => {
     }
   };
 
+  const handleExport = async () => {
+    try {
+      const allFoods = await db.foods.toArray();
+      const allEquivs = await db.equivalences.toArray();
+      const userProfile = await db.profile.toArray();
+      const entries = await db.entries.toArray();
+
+      const exportData = {
+        version: '1.0.0',
+        exportDate: new Date().toISOString(),
+        foods: allFoods,
+        equivalences: allEquivs,
+        profile: userProfile,
+        entries,
+      };
+
+      const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `trazaria-backup-${new Date().toISOString().split('T')[0]}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+
+      toast({
+        title: '✓ Exportado',
+        description: 'Copia de seguridad descargada correctamente',
+      });
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'No se pudo exportar los datos',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleImport = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    try {
+      const text = await file.text();
+      const data = JSON.parse(text);
+
+      // Import foods
+      if (data.foods && Array.isArray(data.foods)) {
+        await db.foods.bulkPut(data.foods);
+      }
+
+      // Import equivalences
+      if (data.equivalences && Array.isArray(data.equivalences)) {
+        await db.equivalences.bulkPut(data.equivalences);
+      }
+
+      // Import entries
+      if (data.entries && Array.isArray(data.entries)) {
+        await db.entries.bulkPut(data.entries);
+      }
+
+      // Import profile
+      if (data.profile && Array.isArray(data.profile)) {
+        await db.profile.bulkPut(data.profile);
+        await loadProfile();
+      }
+
+      setImportDialog(false);
+
+      toast({
+        title: '✓ Importado',
+        description: 'Datos restaurados correctamente',
+      });
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Archivo inválido o corrupto',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleDeleteAll = async () => {
+    try {
+      await db.entries.clear();
+      await db.foods.clear();
+      await db.equivalences.clear();
+      await db.profile.clear();
+
+      setDeleteAllDialog(false);
+      setProfile(null);
+      setCurrentDailyKcal(0);
+
+      toast({
+        title: '✓ Datos borrados',
+        description: 'Todos los datos han sido eliminados. Recarga la página para volver al onboarding.',
+      });
+
+      // Recargar después de 2 segundos
+      setTimeout(() => {
+        window.location.reload();
+      }, 2000);
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'No se pudieron borrar los datos',
+        variant: 'destructive',
+      });
+    }
+  };
+
   return (
     <>
       <div className="min-h-screen bg-background p-4 pb-24">
@@ -178,16 +300,16 @@ const Settings = () => {
               <Button
                 variant="outline"
                 className="w-full justify-start"
-                disabled
+                onClick={handleExport}
               >
                 <Download className="w-4 h-4 mr-2" />
-                Exportar datos (CSV/JSON)
+                Exportar datos (JSON)
               </Button>
 
               <Button
                 variant="outline"
                 className="w-full justify-start"
-                disabled
+                onClick={() => setImportDialog(true)}
               >
                 <Upload className="w-4 h-4 mr-2" />
                 Importar datos
@@ -195,17 +317,8 @@ const Settings = () => {
 
               <Button
                 variant="outline"
-                className="w-full justify-start"
-                disabled
-              >
-                <Database className="w-4 h-4 mr-2" />
-                Gestionar equivalencias
-              </Button>
-
-              <Button
-                variant="outline"
-                className="w-full justify-start text-destructive hover:text-destructive"
-                disabled
+                className="w-full justify-start text-destructive hover:text-destructive hover:bg-destructive/10"
+                onClick={() => setDeleteAllDialog(true)}
               >
                 <Trash2 className="w-4 h-4 mr-2" />
                 Borrar todos los datos
@@ -382,6 +495,60 @@ const Settings = () => {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Dialog para borrar todos los datos */}
+      <AlertDialog open={deleteAllDialog} onOpenChange={setDeleteAllDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Borrar TODOS los datos?</AlertDialogTitle>
+            <AlertDialogDescription className="space-y-2">
+              <p className="font-semibold text-destructive">
+                Esta acción es IRREVERSIBLE y eliminará:
+              </p>
+              <ul className="list-disc list-inside space-y-1 text-sm">
+                <li>Todos tus registros de comidas</li>
+                <li>Todos los alimentos personalizados</li>
+                <li>Todas las equivalencias</li>
+                <li>Tu perfil y configuración</li>
+              </ul>
+              <p className="text-sm pt-2">
+                💡 Si quieres conservar una copia, primero exporta tus datos.
+              </p>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteAll}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Sí, borrar todo
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Dialog para importar datos */}
+      <AlertDialog open={importDialog} onOpenChange={setImportDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Importar datos</AlertDialogTitle>
+            <AlertDialogDescription>
+              Selecciona un archivo de copia de seguridad (.json) previamente exportado desde Trazaria. Los datos se combinarán con los existentes.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div>
+            <Input
+              type="file"
+              accept=".json"
+              onChange={handleImport}
+            />
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <BottomNav />
     </>

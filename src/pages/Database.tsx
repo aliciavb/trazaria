@@ -38,11 +38,8 @@ import {
   Search, 
   Edit, 
   Copy, 
-  Trash2, 
-  Download, 
-  Upload,
-  AlertCircle,
-  CheckCircle2
+  Trash2,
+  AlertCircle
 } from 'lucide-react';
 import BottomNav from '@/components/BottomNav';
 import { useToast } from '@/hooks/use-toast';
@@ -103,9 +100,6 @@ const Database = () => {
   // Delete dialogs
   const [deleteFood, setDeleteFood] = useState<FoodItem | null>(null);
   const [deleteEquiv, setDeleteEquiv] = useState<UserEquivalence | null>(null);
-
-  // Export/Import
-  const [importDialog, setImportDialog] = useState(false);
 
   // Filter foods
   const filteredFoods = foods.filter(food => {
@@ -226,69 +220,6 @@ const Database = () => {
     }
   };
 
-  // Export/Import
-  const handleExport = async () => {
-    const allFoods = await db.foods.toArray();
-    const allEquivs = await db.equivalences.toArray();
-    const profile = await db.profile.get('user-profile');
-    const entries = await db.entries.toArray();
-
-    const exportData = {
-      version: '0.5.0',
-      exportDate: new Date().toISOString(),
-      foods: allFoods,
-      equivalences: allEquivs,
-      profile,
-      entries,
-    };
-
-    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `trazaria-backup-${new Date().toISOString().split('T')[0]}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-
-    toast({ 
-      title: '✓ Exportado', 
-      description: 'Copia de seguridad descargada correctamente' 
-    });
-  };
-
-  const handleImport = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    try {
-      const text = await file.text();
-      const data = JSON.parse(text);
-      
-      // Import foods
-      if (data.foods && Array.isArray(data.foods)) {
-        await db.foods.bulkPut(data.foods);
-      }
-
-      // Import equivalences
-      if (data.equivalences && Array.isArray(data.equivalences)) {
-        await db.equivalences.bulkPut(data.equivalences);
-      }
-
-      setImportDialog(false);
-
-      toast({ 
-        title: '✓ Importado', 
-        description: 'Datos restaurados correctamente' 
-      });
-    } catch (error) {
-      toast({ 
-        title: 'Error', 
-        description: 'Archivo inválido o corrupto',
-        variant: 'destructive'
-      });
-    }
-  };
-
   const resetFoodForm = () => {
     setFoodForm({
       name: '',
@@ -383,10 +314,9 @@ const Database = () => {
           </Card>
 
           <Tabs defaultValue="foods" className="w-full">
-            <TabsList className="grid w-full grid-cols-3">
+            <TabsList className="grid w-full grid-cols-2">
               <TabsTrigger value="foods">Alimentos</TabsTrigger>
               <TabsTrigger value="equivalences">Equivalencias</TabsTrigger>
-              <TabsTrigger value="export">Exportar/Importar</TabsTrigger>
             </TabsList>
 
             {/* ALIMENTOS TAB */}
@@ -566,64 +496,6 @@ const Database = () => {
                   ))
                 )}
               </div>
-            </TabsContent>
-
-            {/* EXPORT/IMPORT TAB */}
-            <TabsContent value="export" className="space-y-4">
-              <Card className="p-6 bg-gradient-card space-y-4">
-                <div className="space-y-2">
-                  <h3 className="font-semibold flex items-center gap-2">
-                    <Download className="w-5 h-5" />
-                    Exportar datos
-                  </h3>
-                  <p className="text-sm text-muted-foreground">
-                    Descarga una copia de seguridad de todos tus datos: alimentos, comidas, equivalencias y configuración.
-                  </p>
-                  <Button onClick={handleExport} className="w-full" variant="outline">
-                    <Download className="w-4 h-4 mr-2" />
-                    Descargar copia de seguridad (.json)
-                  </Button>
-                </div>
-
-                <div className="h-px bg-border" />
-
-                <div className="space-y-2">
-                  <h3 className="font-semibold flex items-center gap-2">
-                    <Upload className="w-5 h-5" />
-                    Importar datos
-                  </h3>
-                  <p className="text-sm text-muted-foreground">
-                    Restaura una copia de seguridad previa. Esto combinará los datos importados con los existentes.
-                  </p>
-                  <Button onClick={() => setImportDialog(true)} className="w-full" variant="outline">
-                    <Upload className="w-4 h-4 mr-2" />
-                    Importar desde archivo
-                  </Button>
-                </div>
-              </Card>
-
-              <Card className="p-6 bg-gradient-card border-primary/20">
-                <div className="flex gap-3">
-                  <CheckCircle2 className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
-                  <div className="space-y-2">
-                    <h3 className="font-semibold">Control total de tus datos</h3>
-                    <div className="text-sm text-muted-foreground space-y-1">
-                      <p>
-                        ✓ <strong>100% local:</strong> Todo se almacena en tu dispositivo (IndexedDB). Ni siquiera necesitas internet.
-                      </p>
-                      <p>
-                        ✓ <strong>Sin nube:</strong> Trazaria no tiene servidores. Nadie tiene acceso a tu información.
-                      </p>
-                      <p>
-                        ✓ <strong>Portabilidad:</strong> Exporta/importa en JSON estándar. Tus datos no están "encerrados".
-                      </p>
-                      <p>
-                        ✓ <strong>Modificable:</strong> Edita o elimina cualquier alimento, incluso los que vienen por defecto de BEDCA.
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </Card>
             </TabsContent>
           </Tabs>
         </div>
@@ -911,28 +783,6 @@ const Database = () => {
             >
               Eliminar
             </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      {/* IMPORT DIALOG */}
-      <AlertDialog open={importDialog} onOpenChange={setImportDialog}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Importar datos</AlertDialogTitle>
-            <AlertDialogDescription>
-              Selecciona un archivo de copia de seguridad (.json) previamente exportado desde Trazaria.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <div>
-            <Input
-              type="file"
-              accept=".json"
-              onChange={handleImport}
-            />
-          </div>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

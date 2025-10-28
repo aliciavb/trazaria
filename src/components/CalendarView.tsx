@@ -79,16 +79,14 @@ const CalendarView = () => {
     calendarDays.push(
       <div
         key={day}
-        className={`aspect-square p-2 border rounded-lg ${
+        className={`aspect-square p-2 border rounded-lg relative ${
           isToday ? 'border-primary bg-primary/5' : 'border-border'
-        } ${hasData ? 'bg-gradient-card' : ''}`}
+        }`}
       >
         <div className="text-sm font-medium">{day}</div>
         {hasData && (
-          <div className="mt-1">
-            <Badge variant="secondary" className="text-xs px-1 py-0">
-              {totalKcal} kcal
-            </Badge>
+          <div className="absolute bottom-2 left-1/2 -translate-x-1/2">
+            <div className="w-1.5 h-1.5 rounded-full bg-primary" />
           </div>
         )}
       </div>
