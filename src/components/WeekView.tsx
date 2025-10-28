@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { db, Entry } from '@/lib/db';
+import { toLocalDateISO } from '@/lib/utils';
 import { TrendingUp, TrendingDown, Activity } from 'lucide-react';
 
 const WeekView = () => {
@@ -26,8 +27,8 @@ const WeekView = () => {
     const entries = await db.entries
       .where('dateISO')
       .between(
-        sevenDaysAgo.toISOString().split('T')[0],
-        today.toISOString().split('T')[0]
+        toLocalDateISO(sevenDaysAgo), // FIX: Usar fecha local
+        toLocalDateISO(today) // FIX: Usar fecha local
       )
       .toArray();
 
@@ -64,7 +65,7 @@ const WeekView = () => {
     for (let i = 6; i >= 0; i--) {
       const date = new Date(today);
       date.setDate(today.getDate() - i);
-      const dateStr = date.toISOString().split('T')[0];
+      const dateStr = toLocalDateISO(date); // FIX: Usar fecha local
       const dayName = date.toLocaleDateString('es-ES', { weekday: 'short' });
 
       const dayEntries = weekEntries.filter(e => e.dateISO === dateStr);

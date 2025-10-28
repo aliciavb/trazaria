@@ -29,6 +29,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { db, Entry, UserProfile } from '@/lib/db';
 import { getCalorieFormulaExplanation } from '@/lib/calories';
+import { getTodayDateISO } from '@/lib/utils';
 import { Apple, Coffee, Sunset, Cookie, Flame, MoreVertical, Trash2, Copy, Info, Smile, Meh, Frown, SmilePlus, Pizza } from 'lucide-react';
 import BottomNav from '@/components/BottomNav';
 import { useToast } from '@/hooks/use-toast';
@@ -77,7 +78,7 @@ const Today = () => {
   }, []);
 
   const loadTodayData = async () => {
-    const today = new Date().toISOString().split('T')[0];
+    const today = getTodayDateISO(); // FIX: Usar fecha local
     
     const allEntries = await db.entries.where('dateISO').equals(today).toArray();
     const userProfile = await db.profile.get('user-profile');
@@ -127,7 +128,7 @@ const Today = () => {
       const newEntry: Entry = {
         ...entry,
         id: `entry-${now.getTime()}`,
-        dateISO: now.toISOString().split('T')[0],
+        dateISO: getTodayDateISO(), // FIX: Usar fecha local
       };
       
       await db.entries.add(newEntry);

@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { db, Entry, UserEquivalence, FoodItem } from '@/lib/db';
 import { Save, Plus, X, AlertCircle, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { getTodayDateISO } from '@/lib/utils';
 import CreateFoodDialog from '@/components/CreateFoodDialog';
 import BottomNav from '@/components/BottomNav';
 
@@ -190,7 +191,7 @@ const Register = () => {
       
       const entry: Entry = {
         id: `entry-${now.getTime()}`,
-        dateISO: now.toISOString().split('T')[0],
+        dateISO: getTodayDateISO(), // FIX: Usar fecha local en vez de UTC
         type: selectedMeal as any,
         items: itemsWithCalories,
         totalKcal,

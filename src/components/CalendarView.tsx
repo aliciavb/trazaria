@@ -4,6 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { db, Entry } from '@/lib/db';
+import { toLocalDateISO } from '@/lib/utils';
 
 const CalendarView = () => {
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -22,7 +23,7 @@ const CalendarView = () => {
     
     const allEntries = await db.entries
       .where('dateISO')
-      .between(firstDay.toISOString().split('T')[0], lastDay.toISOString().split('T')[0])
+      .between(toLocalDateISO(firstDay), toLocalDateISO(lastDay)) // FIX: Usar fecha local
       .toArray();
     
     setEntries(allEntries);
@@ -40,11 +41,11 @@ const CalendarView = () => {
   };
 
   const getEntriesForDay = (day: number) => {
-    const dateStr = new Date(
+    const dateStr = toLocalDateISO(new Date( // FIX: Usar fecha local
       currentDate.getFullYear(),
       currentDate.getMonth(),
       day
-    ).toISOString().split('T')[0];
+    ));
     
     return entries.filter(e => e.dateISO === dateStr);
   };
