@@ -84,14 +84,9 @@ export function getCalorieFormulaExplanation(params: CalorieParams, dailyKcal: n
     ? '10×peso + 6.25×altura - 5×edad - 161'
     : '10×peso + 6.25×altura - 5×edad + 5';
   
-  return `Fórmula Mifflin-St Jeor (${sexLabel}):
-TMB = ${formula}
-TMB = 10×${weight} + 6.25×${height} - 5×${age} ${sex === 'female' ? '- 161' : '+ 5'}
-TMB = ${Math.round(bmr)} kcal/día
+  return `${formula}
 
 Factor de actividad: ${activityLabels[activityLevel]}
-TDEE = ${Math.round(bmr)} × ${ACTIVITY_MULTIPLIERS[activityLevel]} = ${Math.round(bmr * ACTIVITY_MULTIPLIERS[activityLevel])} kcal/día
-
 Ajuste por objetivo: ${goalLabels[goal]}
 Objetivo diario = ${dailyKcal} kcal/día`;
 }
