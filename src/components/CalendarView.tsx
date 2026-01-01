@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { ChevronLeft, ChevronRight, X, Apple, Coffee, Sunset, Cookie, Pencil } from 'lucide-react';
+import { ChevronLeft, ChevronRight, X, Apple, Coffee, Sunset, Cookie, Pencil, Copy } from 'lucide-react';
 import { db, Entry } from '@/lib/db';
 import { toLocalDateISO } from '@/lib/utils';
 import { useNavigate } from 'react-router-dom';
@@ -13,6 +13,9 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
+import { useToast } from '@/hooks/use-toast';
 
 const MEAL_ICONS = {
   breakfast: Coffee,
@@ -122,6 +125,49 @@ const CalendarView = () => {
 
   const selectedDayEntries = selectedDay ? getEntriesForDay(selectedDay) : [];
   const selectedDateObj = selectedDay ? new Date(currentDate.getFullYear(), currentDate.getMonth(), selectedDay) : null;
+  const { toast } = useToast();
+
+  const handleDuplicate = async (targetDate: Date) => {
+    if (!selectedDayEntries.length) return;
+
+    const targetDateStr = toLocalDateISO(targetDate);
+    
+    // Check if target is same as source
+    if (selectedDateObj && toLocalDateISO(selectedDateObj) === targetDateStr) {
+      toast({
+        title: "Fecha inválida",
+        description: "No puedes duplicar al mismo día",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    try {
+      const newEntries = selectedDayEntries.map((entry, index) => ({
+        ...entry,
+        id: `entry-${Date.now()}-${index}`,
+        dateISO: targetDateStr,
+      }));
+
+      await db.entries.bulkAdd(newEntries);
+      
+      toast({
+        title: "¡Duplicado!",
+        description: `Se han copiado ${newEntries.length} registros al ${targetDate.toLocaleDateString()}`,
+      });
+
+      // Refresh if we copied to a day in the current view
+      loadMonthEntries();
+      setSelectedDay(null); // Close dialog
+    } catch (error) {
+      console.error(error);
+      toast({
+        title: "Error",
+        description: "No se pudieron copiar los registros",
+        variant: "destructive"
+      });
+    }
+  };
 
   return (
     <div className="space-y-4">
@@ -151,7 +197,7 @@ const CalendarView = () => {
 
       <Card className="p-4 bg-muted/50">
         <p className="text-sm text-muted-foreground">
-          💡 Toca un día con datos para ver y editar los registros de ese día
+          💡 Toca un día para ver y editar los registros
         </p>
       </Card>
 
@@ -161,16 +207,39 @@ const CalendarView = () => {
             <DialogTitle>
               {selectedDateObj?.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })}
             </DialogTitle>
-            {selectedDateObj && (
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                onClick={() => navigate(`/today?date=${toLocalDateISO(selectedDateObj)}`)}
-                title="Editar este día"
-              >
-                <Pencil className="w-4 h-4" />
-              </Button>
-            )}
+            <div className="flex gap-1">
+              {selectedDateObj && selectedDayEntries.length > 0 && (
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      title="Duplicar a otro día"
+                    >
+                      <Copy className="w-4 h-4" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="end">
+                    <Calendar
+                      mode="single"
+                      selected={undefined}
+                      onSelect={(date) => date && handleDuplicate(date)}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
+              )}
+              {selectedDateObj && (
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  onClick={() => navigate(`/today?date=${toLocalDateISO(selectedDateObj)}`)}
+                  title="Editar este día"
+                >
+                  <Pencil className="w-4 h-4" />
+                </Button>
+              )}
+            </div>
           </DialogHeader>
           
           <ScrollArea className="max-h-[60vh]">
