@@ -65,6 +65,7 @@ export interface UserProfile {
 export interface Entry {
   id?: string;
   dateISO: string;
+  time?: string; // HH:MM format
   type: 'breakfast' | 'lunch' | 'dinner' | 'snack' | 'activity';
   items: Array<{
     foodId?: string;

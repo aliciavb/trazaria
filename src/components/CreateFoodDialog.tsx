@@ -44,6 +44,7 @@ const CreateFoodDialog = ({
   const [sugar, setSugar] = useState('');
   const [fiber, setFiber] = useState('');
   const [nutritionText, setNutritionText] = useState('');
+  const [showNutrition, setShowNutrition] = useState(false);
   const { toast } = useToast();
 
   // Actualizar el nombre cuando cambia defaultName (autorrellenado)
@@ -80,10 +81,10 @@ const CreateFoodDialog = ({
   };
 
   const handleSave = async () => {
-    if (!name.trim() || !kcal) {
+    if (!name.trim()) {
       toast({
         title: 'Faltan datos',
-        description: 'Al menos necesitas nombre y calorías',
+        description: 'Necesitas ponerle un nombre al alimento',
         variant: 'destructive',
       });
       return;
@@ -97,7 +98,7 @@ const CreateFoodDialog = ({
       defaultUnits: ['g'],
       source: 'custom',
       nutritionPer100: {
-        kcal: parseFloat(kcal),
+        kcal: kcal ? parseFloat(kcal) : 0,
         protein: protein ? parseFloat(protein) : 0,
         fat: fat ? parseFloat(fat) : 0,
         carbs: carbs ? parseFloat(carbs) : 0,
@@ -127,6 +128,7 @@ const CreateFoodDialog = ({
       setSugar('');
       setFiber('');
       setNutritionText('');
+      setShowNutrition(false);
     } catch (error) {
       toast({
         title: 'Error',
@@ -152,26 +154,36 @@ const CreateFoodDialog = ({
 
         <div className="px-6 overflow-y-auto flex-1">
           <div className="space-y-4 pb-4">
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-2 col-span-2 sm:col-span-1">
-              <Label htmlFor="food-name">Nombre del alimento *</Label>
-              <Input
-                id="food-name"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="Ej: Bizcocho chocolate"
-              />
-            </div>
-            <div className="space-y-2 col-span-2 sm:col-span-1">
-              <Label htmlFor="food-brand">Marca (opcional)</Label>
-              <Input
-                id="food-brand"
-                value={brand}
-                onChange={(e) => setBrand(e.target.value)}
-                placeholder="Ej: Mercadona"
-              />
-            </div>
+          <div className="space-y-2">
+            <Label htmlFor="food-name">Nombre del alimento *</Label>
+            <Input
+              id="food-name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Ej: Bizcocho chocolate"
+            />
           </div>
+
+          {!showNutrition ? (
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full border-dashed"
+              onClick={() => setShowNutrition(true)}
+            >
+              + Añadir valores nutricionales
+            </Button>
+          ) : (
+            <div className="space-y-4 animate-in fade-in slide-in-from-top-2">
+              <div className="space-y-2">
+                <Label htmlFor="food-brand">Marca (opcional)</Label>
+                <Input
+                  id="food-brand"
+                  value={brand}
+                  onChange={(e) => setBrand(e.target.value)}
+                  placeholder="Ej: Mercadona"
+                />
+              </div>
 
           <TooltipProvider>
               <Tooltip>
@@ -314,6 +326,8 @@ const CreateFoodDialog = ({
               />
             </div>
           </div>
+          </div>
+          )}
 
           {kcal && (
             <div className="p-3 bg-muted/50 rounded-md">

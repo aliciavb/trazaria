@@ -2,13 +2,39 @@ import { useState, useEffect } from 'react';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, X, Apple, Coffee, Sunset, Cookie, Pencil } from 'lucide-react';
 import { db, Entry } from '@/lib/db';
 import { toLocalDateISO } from '@/lib/utils';
+import { useNavigate } from 'react-router-dom';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { ScrollArea } from '@/components/ui/scroll-area';
+
+const MEAL_ICONS = {
+  breakfast: Coffee,
+  lunch: Apple,
+  dinner: Sunset,
+  snack: Cookie,
+  activity: null,
+};
+
+const MEAL_LABELS = {
+  breakfast: 'Desayuno',
+  lunch: 'Comida',
+  dinner: 'Cena',
+  snack: 'Snack',
+  activity: 'Actividad',
+};
 
 const CalendarView = () => {
+  const navigate = useNavigate();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [entries, setEntries] = useState<Entry[]>([]);
+  const [selectedDay, setSelectedDay] = useState<number | null>(null);
 
   useEffect(() => {
     loadMonthEntries();
@@ -79,7 +105,8 @@ const CalendarView = () => {
     calendarDays.push(
       <div
         key={day}
-        className={`aspect-square p-2 border rounded-lg relative ${
+        onClick={() => setSelectedDay(day)}
+        className={`aspect-square p-2 border rounded-lg relative cursor-pointer hover:bg-muted transition-colors ${
           isToday ? 'border-primary bg-primary/5' : 'border-border'
         }`}
       >
@@ -92,6 +119,9 @@ const CalendarView = () => {
       </div>
     );
   }
+
+  const selectedDayEntries = selectedDay ? getEntriesForDay(selectedDay) : [];
+  const selectedDateObj = selectedDay ? new Date(currentDate.getFullYear(), currentDate.getMonth(), selectedDay) : null;
 
   return (
     <div className="space-y-4">
@@ -124,6 +154,81 @@ const CalendarView = () => {
           💡 Toca un día con datos para ver y editar los registros de ese día
         </p>
       </Card>
+
+      <Dialog open={selectedDay !== null} onOpenChange={(open) => !open && setSelectedDay(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader className="flex flex-row items-center justify-between pr-8">
+            <DialogTitle>
+              {selectedDateObj?.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })}
+            </DialogTitle>
+            {selectedDateObj && (
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                onClick={() => navigate(`/today?date=${toLocalDateISO(selectedDateObj)}`)}
+                title="Editar este día"
+              >
+                <Pencil className="w-4 h-4" />
+              </Button>
+            )}
+          </DialogHeader>
+          
+          <ScrollArea className="max-h-[60vh]">
+            {selectedDayEntries.length > 0 ? (
+              <div className="space-y-6 pr-4">
+                {(['breakfast', 'lunch', 'dinner', 'snack'] as const).map((type) => {
+                  const typeEntries = selectedDayEntries.filter(e => e.type === type);
+                  if (typeEntries.length === 0) return null;
+                  
+                  const Icon = MEAL_ICONS[type];
+                  const typeTotalKcal = typeEntries.reduce((sum, e) => sum + (e.totalKcal || 0), 0);
+
+                  return (
+                    <div key={type} className="space-y-2">
+                      <div className="flex items-center justify-between border-b pb-1">
+                        <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
+                          {Icon && <Icon className="w-4 h-4 text-primary" />}
+                          {MEAL_LABELS[type]}
+                        </div>
+                        <Badge variant="secondary" className="text-xs h-5">
+                          {typeTotalKcal} kcal
+                        </Badge>
+                      </div>
+                      <div className="pl-2 border-l-2 border-muted ml-1">
+                        {typeEntries.map((entry) => (
+                          <div key={entry.id} className="mb-1 last:mb-0">
+                            {entry.items.map((item, idx) => (
+                              <div key={idx} className="flex items-center justify-between py-1 text-sm group">
+                                <div className="flex items-center gap-3 min-w-0">
+                                  <span className="text-[10px] font-mono text-muted-foreground w-8 shrink-0">
+                                    {idx === 0 ? entry.time : ''}
+                                  </span>
+                                  <span className="truncate text-foreground/90 group-hover:text-foreground transition-colors">
+                                    {item.name}
+                                  </span>
+                                </div>
+                                {item.kcal && item.kcal > 0 ? (
+                                  <span className="text-xs text-muted-foreground ml-2 shrink-0 tabular-nums">
+                                    {item.kcal}
+                                  </span>
+                                ) : null}
+                              </div>
+                            ))}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="py-8 text-center text-muted-foreground">
+                No hay registros para este día
+              </div>
+            )}
+          </ScrollArea>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

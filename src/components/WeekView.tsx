@@ -132,7 +132,7 @@ const WeekView = () => {
               </div>
               <div className="w-full bg-muted rounded-full h-2 overflow-hidden">
                 <div
-                  className="bg-gradient-warm h-full transition-all"
+                  className="bg-primary h-full transition-all"
                   style={{ width: `${(day.kcal / maxKcal) * 100}%` }}
                 />
               </div>

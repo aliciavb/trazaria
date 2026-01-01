@@ -1,8 +1,11 @@
 import { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import {
   Dialog,
   DialogContent,
@@ -30,9 +33,12 @@ import {
 import { db, Entry, UserProfile } from '@/lib/db';
 import { getCalorieFormulaExplanation } from '@/lib/calories';
 import { getTodayDateISO } from '@/lib/utils';
-import { Apple, Coffee, Sunset, Cookie, Flame, MoreVertical, Trash2, Copy, Info, Smile, Meh, Frown, SmilePlus, Pizza } from 'lucide-react';
+import { Apple, Coffee, Sunset, Cookie, Flame, MoreVertical, Trash2, Copy, Info, Smile, Meh, Frown, SmilePlus, Pizza, Pencil } from 'lucide-react';
 import BottomNav from '@/components/BottomNav';
 import { useToast } from '@/hooks/use-toast';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
+import SeasonalWidget from '@/components/SeasonalWidget';
+import AtmosphereWidget from '@/components/AtmosphereWidget';
 
 const MEAL_ICONS = {
   breakfast: Coffee,
@@ -65,20 +71,50 @@ const getFoodDisplayName = async (foodId?: string, fallbackName?: string): Promi
 };
 
 const Today = () => {
+  const [searchParams] = useSearchParams();
+  const dateParam = searchParams.get('date');
   const [entries, setEntries] = useState<Entry[]>([]);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [deleteDialog, setDeleteDialog] = useState<string | null>(null);
   const [foodNames, setFoodNames] = useState<Record<string, string>>({});
   const [dayHunger, setDayHunger] = useState<'very-hungry' | 'hungry' | 'satisfied' | 'full' | 'very-full' | null>(null);
+  const [editingEntry, setEditingEntry] = useState<Entry | null>(null);
   const { toast } = useToast();
 
   useEffect(() => {
     loadTodayData();
-  }, []);
+  }, [dateParam]);
+
+  const handleSaveEdit = async () => {
+    if (!editingEntry || !editingEntry.id) return;
+
+    try {
+      // Recalculate total calories
+      const totalKcal = editingEntry.items.reduce((sum, item) => sum + (item.kcal || 0), 0);
+      const updatedEntry = { ...editingEntry, totalKcal };
+
+      await db.entries.put(updatedEntry);
+
+      toast({
+        title: '✓ Actualizado',
+        description: 'Entrada actualizada correctamente',
+      });
+
+      setEditingEntry(null);
+      await loadTodayData();
+    } catch (error) {
+      console.error(error);
+      toast({
+        title: 'Error',
+        description: 'No se pudo actualizar la entrada',
+        variant: 'destructive',
+      });
+    }
+  };
 
   const loadTodayData = async () => {
-    const today = getTodayDateISO(); // FIX: Usar fecha local
+    const today = dateParam || getTodayDateISO(); // FIX: Usar fecha local
     
     const allEntries = await db.entries.where('dateISO').equals(today).toArray();
     const userProfile = await db.profile.get('user-profile');
@@ -148,6 +184,14 @@ const Today = () => {
     }
   };
 
+  // Agrupar entradas por tipo de comida
+  const groupedEntries = {
+    breakfast: entries.filter(e => e.type === 'breakfast'),
+    lunch: entries.filter(e => e.type === 'lunch'),
+    dinner: entries.filter(e => e.type === 'dinner'),
+    snack: entries.filter(e => e.type === 'snack'),
+  };
+
   const totalKcal = entries.reduce((sum, entry) => sum + (entry.totalKcal || 0), 0);
   const targetKcal = profile?.manualKcal || profile?.dailyKcal || 2000;
   const percentage = Math.min((totalKcal / targetKcal) * 100, 100);
@@ -163,253 +207,402 @@ const Today = () => {
     );
   }
 
+  const CalorieSummary = () => (
+    <Card className="p-6 bg-gradient-card shadow-elevated border-2 border-primary/20">
+      <div className="flex items-center gap-4">
+        
+        <div className="flex-1 space-y-2">
+          <div className="flex items-end justify-between">
+            <div>
+              <div className="flex items-center gap-2">
+                <p className="text-sm text-muted-foreground">Calorías de hoy</p>
+                {profile && (
+                  <Dialog>
+                    <DialogTrigger asChild>
+                      <Button variant="ghost" size="icon" className="h-5 w-5 p-0 hover:bg-primary/10">
+                        <Info className="h-4 w-4 text-muted-foreground hover:text-primary transition-colors" />
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-md">
+                      <DialogHeader>
+                        <DialogTitle>Cálculo de tu objetivo diario</DialogTitle>
+                        <DialogDescription>
+                          Fórmula Mifflin-St Jeor (1990)
+                        </DialogDescription>
+                      </DialogHeader>
+                      <div className="space-y-3">
+                        <div className="p-4 bg-muted/50 rounded-lg">
+                          <pre className="text-xs whitespace-pre-wrap font-mono leading-relaxed">
+                            {getCalorieFormulaExplanation(profile, targetKcal)}
+                          </pre>
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          📚 Referencia: Mifflin MD, St Jeor ST, et al. "A new predictive equation for resting energy expenditure in healthy individuals." Am J Clin Nutr. 1990;51(2):241-7.
+                        </p>
+                      </div>
+                    </DialogContent>
+                  </Dialog>
+                )}
+              </div>
+              <p className="text-3xl font-bold text-foreground">
+                {totalKcal} <span className="text-xl text-muted-foreground">/ {targetKcal}</span>
+              </p>
+            </div>
+            <Badge variant={totalKcal > targetKcal ? 'destructive' : 'secondary'}>
+              {Math.round(percentage)}%
+            </Badge>
+          </div>
+          
+          <Progress value={percentage} className="h-2" />
+          
+          {totalKcal > targetKcal && (
+            <p className="text-xs text-destructive">
+              +{totalKcal - targetKcal} kcal sobre el objetivo
+            </p>
+          )}
+          {totalKcal < targetKcal && targetKcal - totalKcal > 200 && (
+            <p className="text-xs text-muted-foreground">
+              Quedan {targetKcal - totalKcal} kcal para tu objetivo
+            </p>
+          )}
+        </div>
+      </div>
+    </Card>
+  );
+
   return (
     <>
       <div className="min-h-screen bg-background p-4 pb-24">
-        <div className="max-w-2xl mx-auto space-y-6">
-          <div className="text-center space-y-2">
-            <h1 className="text-3xl font-bold text-foreground">Hoy</h1>
-            <p className="text-muted-foreground">
-              {new Date().toLocaleDateString('es-ES', {
-                weekday: 'long',
-                year: 'numeric',
-                month: 'long',
-                day: 'numeric',
-              })}
-            </p>
+        <div className="max-w-5xl mx-auto space-y-6">
+          <div className="flex items-center justify-between">
+            <div className="space-y-1">
+              <h1 className="text-3xl font-serif font-bold text-foreground">{dateParam ? 'Registro' : 'Hoy'}</h1>
+              <p className="text-muted-foreground font-serif">
+                {new Date(dateParam || new Date()).toLocaleDateString('es-ES', {
+                  weekday: 'long',
+                  year: 'numeric',
+                  month: 'long',
+                  day: 'numeric',
+                })}
+              </p>
+            </div>
+            
+            {/* Mobile Trigger for Calories */}
+            <div className="lg:hidden">
+              <Sheet>
+                <SheetTrigger asChild>
+                  <Button variant="outline" size="sm" className="gap-2">
+                    <Flame className="w-4 h-4 text-orange-500" />
+                    {totalKcal} kcal
+                  </Button>
+                </SheetTrigger>
+                <SheetContent side="right">
+                  <SheetHeader className="mb-6">
+                    <SheetTitle>Resumen calórico</SheetTitle>
+                  </SheetHeader>
+                  <CalorieSummary />
+                </SheetContent>
+              </Sheet>
+            </div>
           </div>
 
-          <Card className="p-6 bg-gradient-card shadow-elevated border-2 border-primary/20">
-            <div className="flex items-center gap-4">
-              <div className="flex-shrink-0 w-14 h-14 rounded-full bg-gradient-warm flex items-center justify-center">
-                <Flame className="w-7 h-7 text-white" />
-              </div>
-              
-              <div className="flex-1 space-y-2">
-                <div className="flex items-end justify-between">
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <p className="text-sm text-muted-foreground">Calorías de hoy</p>
-                      {profile && (
-                        <Dialog>
-                          <DialogTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-5 w-5 p-0 hover:bg-primary/10">
-                              <Info className="h-4 w-4 text-muted-foreground hover:text-primary transition-colors" />
-                            </Button>
-                          </DialogTrigger>
-                          <DialogContent className="max-w-md">
-                            <DialogHeader>
-                              <DialogTitle>Cálculo de tu objetivo diario</DialogTitle>
-                              <DialogDescription>
-                                Fórmula Mifflin-St Jeor (1990)
-                              </DialogDescription>
-                            </DialogHeader>
-                            <div className="space-y-3">
-                              <div className="p-4 bg-muted/50 rounded-lg">
-                                <pre className="text-xs whitespace-pre-wrap font-mono leading-relaxed">
-                                  {getCalorieFormulaExplanation(profile, targetKcal)}
-                                </pre>
-                              </div>
-                              <p className="text-xs text-muted-foreground">
-                                📚 Referencia: Mifflin MD, St Jeor ST, et al. "A new predictive equation for resting energy expenditure in healthy individuals." Am J Clin Nutr. 1990;51(2):241-7.
-                              </p>
-                            </div>
-                          </DialogContent>
-                        </Dialog>
-                      )}
-                    </div>
-                    <p className="text-3xl font-bold text-foreground">
-                      {totalKcal} <span className="text-xl text-muted-foreground">/ {targetKcal}</span>
-                    </p>
-                  </div>
-                  <Badge variant={totalKcal > targetKcal ? 'destructive' : 'secondary'}>
-                    {Math.round(percentage)}%
-                  </Badge>
-                </div>
-                
-                <Progress value={percentage} className="h-2" />
-                
-                {totalKcal > targetKcal && (
-                  <p className="text-xs text-destructive">
-                    +{totalKcal - targetKcal} kcal sobre el objetivo
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Main Content - Timeline */}
+            <div className="lg:col-span-2 space-y-6">
+              {entries.length === 0 ? (
+                <Card className="p-8 text-center bg-gradient-card shadow-card">
+                  <p className="text-muted-foreground">
+                    Aún no has registrado nada hoy.
                   </p>
-                )}
-                {totalKcal < targetKcal && targetKcal - totalKcal > 200 && (
-                  <p className="text-xs text-muted-foreground">
-                    Quedan {targetKcal - totalKcal} kcal para tu objetivo
+                  <p className="text-sm text-muted-foreground mt-2">
+                    Cuando quieras, ve a "Registrar" para añadir algo.
                   </p>
-                )}
-              </div>
-            </div>
-          </Card>
+                </Card>
+              ) : (
+                <div className="space-y-6">
+                  {(['breakfast', 'lunch', 'dinner', 'snack'] as const).map((type) => {
+                    const typeEntries = groupedEntries[type];
+                    if (typeEntries.length === 0) return null;
 
-          {entries.length === 0 ? (
-            <Card className="p-8 text-center bg-gradient-card shadow-card">
-              <p className="text-muted-foreground">
-                Aún no has registrado nada hoy.
-              </p>
-              <p className="text-sm text-muted-foreground mt-2">
-                Cuando quieras, ve a "Registrar" para añadir algo.
-              </p>
-            </Card>
-          ) : (
-            <div className="space-y-4">
-              {entries.map((entry) => {
-                const Icon = MEAL_ICONS[entry.type];
-                return (
-                  <Card
-                    key={entry.id}
-                    className="p-5 bg-gradient-card shadow-card hover:shadow-elevated transition-all"
-                  >
-                    <div className="flex items-start gap-4">
-                      {Icon && (
-                        <div className="flex-shrink-0 w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                          <Icon className="w-5 h-5 text-primary" />
-                        </div>
-                      )}
-                      
-                      <div className="flex-1 space-y-3">
-                        <div className="flex items-center justify-between">
-                          <h3 className="font-semibold text-lg">
-                            {MEAL_LABELS[entry.type]}
-                          </h3>
-                          <div className="flex gap-2 items-center">
-                            {entry.totalKcal && entry.totalKcal > 0 && (
-                              <Badge variant="default" className="bg-gradient-warm">
-                                {entry.totalKcal} kcal
-                              </Badge>
-                            )}
-                            <Badge variant="secondary">
-                              {entry.items.length} items
-                            </Badge>
-                            
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="icon" className="h-8 w-8">
-                                  <MoreVertical className="h-4 w-4" />
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end">
-                                <DropdownMenuItem onClick={() => handleDuplicate(entry)}>
-                                  <Copy className="w-4 h-4 mr-2" />
-                                  Duplicar
-                                </DropdownMenuItem>
-                                <DropdownMenuItem
-                                  onClick={() => setDeleteDialog(entry.id)}
-                                  className="text-destructive focus:text-destructive"
-                                >
-                                  <Trash2 className="w-4 h-4 mr-2" />
-                                  Eliminar
-                                </DropdownMenuItem>
-                              </DropdownMenuContent>
-                            </DropdownMenu>
+                    const Icon = MEAL_ICONS[type];
+                    const typeTotalKcal = typeEntries.reduce((sum, e) => sum + (e.totalKcal || 0), 0);
+
+                    return (
+                      <div key={type} className="space-y-3">
+                        <div className="flex items-center justify-between px-1">
+                          <div className="flex items-center gap-2">
+                            {Icon && <Icon className="w-5 h-5 text-primary" />}
+                            <h3 className="font-semibold text-lg">{MEAL_LABELS[type]}</h3>
                           </div>
+                          <Badge variant="secondary" className="bg-primary/10 text-primary hover:bg-primary/20">
+                            {typeTotalKcal} kcal
+                          </Badge>
                         </div>
 
-                        <div className="space-y-2">
-                          {entry.items.map((item, idx) => (
-                            <div
-                              key={idx}
-                              className="flex items-center justify-between text-sm"
-                            >
-                              <span className="text-foreground">
-                                {item.foodId && foodNames[item.foodId] ? foodNames[item.foodId] : item.name}
-                              </span>
-                              <div className="flex gap-2 items-center">
-                                <span className="text-muted-foreground">
-                                  {item.qty} {item.unit}
-                                </span>
-                                {item.kcal && item.kcal > 0 && (
-                                  <span className="text-xs text-muted-foreground">
-                                    ({item.kcal} kcal)
-                                  </span>
+                        <Card className="divide-y divide-border bg-gradient-card shadow-card overflow-hidden">
+                          {typeEntries.map((entry) => (
+                            <div key={entry.id} className="p-4 hover:bg-muted/30 transition-colors">
+                              <div className="space-y-3">
+                                <div className="flex items-start justify-between">
+                                  <div className="space-y-1 flex-1">
+                                    {entry.items.map((item, idx) => (
+                                      <div key={idx} className="flex items-center justify-between text-sm">
+                                        <div className="flex items-center gap-2">
+                                          <span className="font-medium text-foreground">
+                                            {item.foodId && foodNames[item.foodId] ? foodNames[item.foodId] : item.name}
+                                          </span>
+                                          {entry.time && idx === 0 && (
+                                            <span className="text-xs text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
+                                              {entry.time}
+                                            </span>
+                                          )}
+                                        </div>
+                                        <div className="flex items-center gap-3">
+                                          <span className="text-muted-foreground text-xs">
+                                            {item.qty} {item.unit}
+                                          </span>
+                                          {item.kcal && item.kcal > 0 && (
+                                            <span className="text-xs font-medium text-muted-foreground w-16 text-right">
+                                              {item.kcal} kcal
+                                            </span>
+                                          )}
+                                        </div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                  
+                                  <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                      <Button variant="ghost" size="icon" className="h-8 w-8 -mr-2 -mt-2 text-muted-foreground">
+                                        <MoreVertical className="h-4 w-4" />
+                                      </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end">
+                                      <DropdownMenuItem onClick={() => setEditingEntry(JSON.parse(JSON.stringify(entry)))}>
+                                        <Pencil className="w-4 h-4 mr-2" />
+                                        Editar
+                                      </DropdownMenuItem>
+                                      <DropdownMenuItem onClick={() => handleDuplicate(entry)}>
+                                        <Copy className="w-4 h-4 mr-2" />
+                                        Duplicar
+                                      </DropdownMenuItem>
+                                      <DropdownMenuItem
+                                        onClick={() => setDeleteDialog(entry.id)}
+                                        className="text-destructive focus:text-destructive"
+                                      >
+                                        <Trash2 className="w-4 h-4 mr-2" />
+                                        Eliminar
+                                      </DropdownMenuItem>
+                                    </DropdownMenuContent>
+                                  </DropdownMenu>
+                                </div>
+
+                                {entry.notes && (
+                                  <p className="text-xs text-muted-foreground italic pl-2 border-l-2 border-primary/20">
+                                    {entry.notes}
+                                  </p>
                                 )}
                               </div>
                             </div>
                           ))}
-                        </div>
-
-                        {entry.notes && (
-                          <p className="text-sm text-muted-foreground italic border-l-2 border-primary/30 pl-3">
-                            {entry.notes}
-                          </p>
-                        )}
+                        </Card>
                       </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* Bienestar del día */}
+              {entries.length > 0 && (
+                <Card className="p-6 bg-gradient-card shadow-card">
+                  <div className="space-y-4">
+                    <div>
+                      <h3 className="font-semibold mb-2">¿Cómo te has sentido hoy?</h3>
+                      <p className="text-sm text-muted-foreground mb-4">
+                        Nivel de saciedad después de tus comidas
+                      </p>
                     </div>
-                  </Card>
-                );
-              })}
+
+                    <div className="grid grid-cols-5 gap-2">
+                      <Button
+                        variant={dayHunger === 'very-hungry' ? 'default' : 'outline'}
+                        className="flex-col h-auto py-3 px-1 min-h-[72px]"
+                        onClick={() => setDayHunger('very-hungry')}
+                      >
+                        <Frown className="w-6 h-6 mb-1 flex-shrink-0" />
+                        <span className="text-[10px] leading-tight text-center">Mucha hambre</span>
+                      </Button>
+
+                      <Button
+                        variant={dayHunger === 'hungry' ? 'default' : 'outline'}
+                        className="flex-col h-auto py-3 px-1 min-h-[72px]"
+                        onClick={() => setDayHunger('hungry')}
+                      >
+                        <Meh className="w-6 h-6 mb-1 flex-shrink-0" />
+                        <span className="text-[10px] leading-tight text-center">Algo de hambre</span>
+                      </Button>
+
+                      <Button
+                        variant={dayHunger === 'satisfied' ? 'default' : 'outline'}
+                        className="flex-col h-auto py-3 px-1 min-h-[72px]"
+                        onClick={() => setDayHunger('satisfied')}
+                      >
+                        <Smile className="w-6 h-6 mb-1 flex-shrink-0" />
+                        <span className="text-[10px] leading-tight text-center">Saciado</span>
+                      </Button>
+
+                      <Button
+                        variant={dayHunger === 'full' ? 'default' : 'outline'}
+                        className="flex-col h-auto py-3 px-1 min-h-[72px]"
+                        onClick={() => setDayHunger('full')}
+                      >
+                        <SmilePlus className="w-6 h-6 mb-1 flex-shrink-0" />
+                        <span className="text-[10px] leading-tight text-center">Lleno</span>
+                      </Button>
+
+                      <Button
+                        variant={dayHunger === 'very-full' ? 'default' : 'outline'}
+                        className="flex-col h-auto py-3 px-1 min-h-[72px]"
+                        onClick={() => setDayHunger('very-full')}
+                      >
+                        <Pizza className="w-6 h-6 mb-1 flex-shrink-0" />
+                        <span className="text-[10px] leading-tight text-center">Muy lleno</span>
+                      </Button>
+                    </div>
+
+                    {dayHunger && (
+                      <p className="text-xs text-center text-muted-foreground">
+                        ✓ Guardado automáticamente
+                      </p>
+                    )}
+                  </div>
+                </Card>
+              )}
             </div>
-          )}
 
-          {/* Bienestar del día */}
-          {entries.length > 0 && (
-            <Card className="p-6 bg-gradient-card shadow-card">
-              <div className="space-y-4">
-                <div>
-                  <h3 className="font-semibold mb-2">¿Cómo te has sentido hoy?</h3>
-                  <p className="text-sm text-muted-foreground mb-4">
-                    Nivel de saciedad después de tus comidas
-                  </p>
-                </div>
-
-                <div className="grid grid-cols-5 gap-2">
-                  <Button
-                    variant={dayHunger === 'very-hungry' ? 'default' : 'outline'}
-                    className="flex-col h-auto py-3 px-1 min-h-[72px]"
-                    onClick={() => setDayHunger('very-hungry')}
-                  >
-                    <Frown className="w-6 h-6 mb-1 flex-shrink-0" />
-                    <span className="text-[10px] leading-tight text-center">Mucha hambre</span>
-                  </Button>
-
-                  <Button
-                    variant={dayHunger === 'hungry' ? 'default' : 'outline'}
-                    className="flex-col h-auto py-3 px-1 min-h-[72px]"
-                    onClick={() => setDayHunger('hungry')}
-                  >
-                    <Meh className="w-6 h-6 mb-1 flex-shrink-0" />
-                    <span className="text-[10px] leading-tight text-center">Algo de hambre</span>
-                  </Button>
-
-                  <Button
-                    variant={dayHunger === 'satisfied' ? 'default' : 'outline'}
-                    className="flex-col h-auto py-3 px-1 min-h-[72px]"
-                    onClick={() => setDayHunger('satisfied')}
-                  >
-                    <Smile className="w-6 h-6 mb-1 flex-shrink-0" />
-                    <span className="text-[10px] leading-tight text-center">Saciado</span>
-                  </Button>
-
-                  <Button
-                    variant={dayHunger === 'full' ? 'default' : 'outline'}
-                    className="flex-col h-auto py-3 px-1 min-h-[72px]"
-                    onClick={() => setDayHunger('full')}
-                  >
-                    <SmilePlus className="w-6 h-6 mb-1 flex-shrink-0" />
-                    <span className="text-[10px] leading-tight text-center">Lleno</span>
-                  </Button>
-
-                  <Button
-                    variant={dayHunger === 'very-full' ? 'default' : 'outline'}
-                    className="flex-col h-auto py-3 px-1 min-h-[72px]"
-                    onClick={() => setDayHunger('very-full')}
-                  >
-                    <Pizza className="w-6 h-6 mb-1 flex-shrink-0" />
-                    <span className="text-[10px] leading-tight text-center">Muy lleno</span>
-                  </Button>
-                </div>
-
-                {dayHunger && (
-                  <p className="text-xs text-center text-muted-foreground">
-                    ✓ Guardado automáticamente
-                  </p>
-                )}
+            {/* Sidebar - Calories (Desktop only) */}
+            <div className="hidden lg:block space-y-6">
+              <div className="sticky top-6 space-y-6">
+                <AtmosphereWidget />
+                <CalorieSummary />
+                <SeasonalWidget date={dateParam ? new Date(dateParam) : new Date()} />
               </div>
-            </Card>
-          )}
+            </div>
+          </div>
         </div>
       </div>
+      
+      <Dialog open={editingEntry !== null} onOpenChange={(open) => !open && setEditingEntry(null)}>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Editar entrada</DialogTitle>
+            <DialogDescription>Modifica los detalles de este registro.</DialogDescription>
+          </DialogHeader>
+          
+          {editingEntry && (
+            <div className="space-y-4 py-2">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Hora</Label>
+                  <Input 
+                    type="time" 
+                    value={editingEntry.time || ''} 
+                    onChange={(e) => setEditingEntry({...editingEntry, time: e.target.value})}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Tipo</Label>
+                  <select 
+                    className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                    value={editingEntry.type}
+                    onChange={(e) => setEditingEntry({...editingEntry, type: e.target.value as any})}
+                  >
+                    <option value="breakfast">Desayuno</option>
+                    <option value="lunch">Comida</option>
+                    <option value="dinner">Cena</option>
+                    <option value="snack">Snack</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <Label>Alimentos</Label>
+                {editingEntry.items.map((item, idx) => (
+                  <div key={idx} className="p-3 border rounded-lg space-y-3 bg-muted/20">
+                    <div className="space-y-2">
+                      <Label className="text-xs text-muted-foreground">Nombre</Label>
+                      <Input 
+                        value={item.name} 
+                        onChange={(e) => {
+                          const newItems = [...editingEntry.items];
+                          newItems[idx] = { ...item, name: e.target.value };
+                          setEditingEntry({ ...editingEntry, items: newItems });
+                        }}
+                      />
+                    </div>
+                    <div className="grid grid-cols-3 gap-2">
+                      <div className="space-y-2">
+                        <Label className="text-xs text-muted-foreground">Cantidad</Label>
+                        <Input 
+                          type="number" 
+                          value={item.qty} 
+                          onChange={(e) => {
+                            const newQty = parseFloat(e.target.value) || 0;
+                            // Auto-calculate kcal based on ratio if kcal exists
+                            const ratio = item.qty > 0 ? newQty / item.qty : 1;
+                            const newKcal = item.kcal ? Math.round(item.kcal * ratio) : 0;
+                            
+                            const newItems = [...editingEntry.items];
+                            newItems[idx] = { ...item, qty: newQty, kcal: newKcal };
+                            setEditingEntry({ ...editingEntry, items: newItems });
+                          }}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="text-xs text-muted-foreground">Unidad</Label>
+                        <Input 
+                          value={item.unit} 
+                          onChange={(e) => {
+                            const newItems = [...editingEntry.items];
+                            newItems[idx] = { ...item, unit: e.target.value };
+                            setEditingEntry({ ...editingEntry, items: newItems });
+                          }}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="text-xs text-muted-foreground">Kcal</Label>
+                        <Input 
+                          type="number" 
+                          value={item.kcal || 0} 
+                          onChange={(e) => {
+                            const newItems = [...editingEntry.items];
+                            newItems[idx] = { ...item, kcal: parseFloat(e.target.value) || 0 };
+                            setEditingEntry({ ...editingEntry, items: newItems });
+                          }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="space-y-2">
+                <Label>Notas</Label>
+                <Input 
+                  value={editingEntry.notes || ''} 
+                  onChange={(e) => setEditingEntry({...editingEntry, notes: e.target.value})}
+                  placeholder="Añadir nota..."
+                />
+              </div>
+
+              <div className="flex justify-end gap-2 pt-4">
+                <Button variant="outline" onClick={() => setEditingEntry(null)}>Cancelar</Button>
+                <Button onClick={handleSaveEdit}>Guardar cambios</Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
       
       <AlertDialog open={deleteDialog !== null} onOpenChange={(open) => !open && setDeleteDialog(null)}>
         <AlertDialogContent>
@@ -430,7 +623,6 @@ const Today = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-      
       <BottomNav />
     </>
   );

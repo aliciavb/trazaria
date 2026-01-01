@@ -1,450 +1,439 @@
-import { useState, useEffect } from 'react';
-import { Input } from '@/components/ui/input';
+import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { db, Entry, UserEquivalence, FoodItem } from '@/lib/db';
-import { Save, Plus, X, AlertCircle, Loader2 } from 'lucide-react';
+import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
+import { db, FoodItem, Entry } from '@/lib/db';
 import { getTodayDateISO } from '@/lib/utils';
-import CreateFoodDialog from '@/components/CreateFoodDialog';
+import { Sparkles, Info, ExternalLink } from 'lucide-react';
+import { extractNutritionFromText } from '@/lib/parser';
 import BottomNav from '@/components/BottomNav';
-
-const MEAL_TYPES = [
-  { value: 'breakfast', label: 'Desayuno' },
-  { value: 'lunch', label: 'Comida' },
-  { value: 'dinner', label: 'Cena' },
-  { value: 'snack', label: 'Snack' },
-];
-
-const COMMON_UNITS = [
-  { value: 'g', label: 'gramos (g)' },
-  { value: 'ml', label: 'mililitros (ml)' },
-  { value: 'taza', label: 'taza' },
-  { value: 'bol', label: 'bol' },
-  { value: 'puñado', label: 'puñado' },
-  { value: 'cucharada', label: 'cucharada' },
-  { value: 'unidad', label: 'unidad' },
-];
-
-interface ItemInput {
-  id: string;
-  name: string;
-  qty: string;
-  unit: string;
-  foodId?: string;
-  kcal?: number;
-  isUnknown?: boolean;
-}
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Clock } from 'lucide-react';
 
 const Register = () => {
-  const [items, setItems] = useState<ItemInput[]>([
-    { id: '1', name: '', qty: '', unit: 'g' },
-  ]);
-  const [selectedMeal, setSelectedMeal] = useState<string>('');
-  const [foods, setFoods] = useState<FoodItem[]>([]);
-  const [equivalences, setEquivalences] = useState<UserEquivalence[]>([]);
-  const [isSaving, setIsSaving] = useState(false);
-  const [createFoodDialog, setCreateFoodDialog] = useState(false);
-  const [createFoodName, setCreateFoodName] = useState('');
-  const [suggestions, setSuggestions] = useState<{ [key: string]: FoodItem[] }>({});
+  const navigate = useNavigate();
   const { toast } = useToast();
+  
+  const [name, setName] = useState('');
+  const [brand, setBrand] = useState('');
+  const [time, setTime] = useState(() => {
+    const now = new Date();
+    return `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+  });
+  const [showNutrition, setShowNutrition] = useState(false);
+  
+  // Nutrition states
+  const [kcal, setKcal] = useState('');
+  const [protein, setProtein] = useState('');
+  const [fat, setFat] = useState('');
+  const [carbs, setCarbs] = useState('');
+  const [sugar, setSugar] = useState('');
+  const [fiber, setFiber] = useState('');
+  const [nutritionText, setNutritionText] = useState('');
 
-  useEffect(() => {
-    loadData();
-  }, []);
-
-  const loadData = async () => {
-    const allFoods = await db.foods.toArray();
-    const allEquiv = await db.equivalences.toArray();
-    setFoods(allFoods);
-    setEquivalences(allEquiv);
+  const adjustTime = (minutes: number) => {
+    const [h, m] = time.split(':').map(Number);
+    const date = new Date();
+    date.setHours(h);
+    date.setMinutes(m + minutes);
+    setTime(`${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`);
   };
 
-  const handleNameChange = (id: string, name: string) => {
-    setItems(items.map(item => {
-      if (item.id === id) {
-        // Search for matching foods
-        const matches = foods.filter(f => 
-          f.name.toLowerCase().includes(name.toLowerCase())
-        ).slice(0, 5);
-        
-        setSuggestions(prev => ({ ...prev, [id]: matches }));
-        
-        return { ...item, name, foodId: undefined, kcal: undefined };
+  const setNow = () => {
+    const now = new Date();
+    setTime(`${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`);
+  };
+
+  const handleTimeBlur = () => {
+    const clean = time.replace(/[^0-9]/g, '');
+    if (clean.length === 4) {
+      const h = clean.slice(0, 2);
+      const m = clean.slice(2);
+      if (parseInt(h) < 24 && parseInt(m) < 60) {
+        setTime(`${h}:${m}`);
       }
-      return item;
-    }));
-  };
-
-  const handleSelectFood = (itemId: string, food: FoodItem) => {
-    setItems(items.map(item => {
-      if (item.id === itemId) {
-        setSuggestions(prev => ({ ...prev, [itemId]: [] }));
-        return {
-          ...item,
-          name: `${food.name}${food.brand ? ` (${food.brand})` : ''}`,
-          foodId: food.id,
-          isUnknown: false,
-        };
-      }
-      return item;
-    }));
-  };
-
-  const handleQtyChange = (id: string, qty: string) => {
-    setItems(items.map(item => 
-      item.id === id ? { ...item, qty } : item
-    ));
-  };
-
-  const handleUnitChange = (id: string, unit: string) => {
-    setItems(items.map(item => 
-      item.id === id ? { ...item, unit } : item
-    ));
-  };
-
-  const addItem = () => {
-    setItems([...items, { id: Date.now().toString(), name: '', qty: '', unit: 'g' }]);
-  };
-
-  const removeItem = (id: string) => {
-    if (items.length > 1) {
-      setItems(items.filter(item => item.id !== id));
+    } else if (clean.length === 3) {
+      const h = clean.slice(0, 1);
+      const m = clean.slice(1);
+      setTime(`0${h}:${m}`);
     }
   };
 
-  const calculateItemKcal = (item: ItemInput): number => {
-    if (!item.foodId || !item.qty) return 0;
+  const handleExtract = () => {
+    const extracted = extractNutritionFromText(nutritionText);
     
-    const food = foods.find(f => f.id === item.foodId);
-    if (!food) return 0;
-
-    let grams = parseFloat(item.qty);
+    if (extracted.kcal) setKcal(extracted.kcal.toString());
+    if (extracted.protein) setProtein(extracted.protein.toString());
+    if (extracted.fat) setFat(extracted.fat.toString());
+    if (extracted.carbs) setCarbs(extracted.carbs.toString());
+    if (extracted.sugar) setSugar(extracted.sugar.toString());
+    if (extracted.fiber) setFiber(extracted.fiber.toString());
     
-    // Convert to grams using equivalences if needed
-    if (item.unit !== 'g') {
-      const equiv = equivalences.find(e => 
-        e.unitLabel.toLowerCase() === item.unit.toLowerCase()
-      );
-      if (equiv) {
-        grams = grams * equiv.gramsPerUnit;
-      } else {
-        // Default conversions for common units
-        if (item.unit === 'ml') grams = grams; // 1ml ≈ 1g for most liquids
-        if (item.unit === 'taza') grams = grams * 240;
-        if (item.unit === 'bol') grams = grams * 300;
-        if (item.unit === 'cucharada') grams = grams * 15;
-      }
+    const foundCount = Object.values(extracted).filter(v => v !== undefined).length;
+    
+    if (foundCount === 0) {
+      toast({
+        title: 'No se encontró información',
+        description: 'Intenta pegar el texto completo de la etiqueta nutricional',
+        variant: 'destructive',
+      });
+    } else {
+      toast({
+        title: `✓ Extraído`,
+        description: `${foundCount} valores nutricionales detectados`,
+      });
     }
-
-    return Math.round((grams / 100) * food.nutritionPer100.kcal);
   };
 
   const handleSave = async () => {
-    // Validate
-    const validItems = items.filter(item => item.name.trim() && item.qty);
-    
-    if (validItems.length === 0) {
+    if (!name.trim()) {
       toast({
-        title: 'No hay items',
-        description: 'Añade al menos un alimento',
+        title: 'Faltan datos',
+        description: 'Necesitas ponerle un nombre al alimento',
         variant: 'destructive',
       });
       return;
     }
 
-    if (!selectedMeal) {
-      toast({
-        title: 'Falta tipo de comida',
-        description: 'Selecciona desayuno, comida, cena o snack',
-        variant: 'destructive',
-      });
-      return;
-    }
+    // 1. Crear el alimento en la base de datos
+    const food: FoodItem = {
+      id: `food-custom-${Date.now()}`,
+      name: name.trim(),
+      brand: brand.trim() || undefined,
+      category: 'Otros',
+      defaultUnits: ['g'],
+      source: 'custom',
+      nutritionPer100: {
+        kcal: kcal ? parseFloat(kcal) : 0,
+        protein: protein ? parseFloat(protein) : 0,
+        fat: fat ? parseFloat(fat) : 0,
+        carbs: carbs ? parseFloat(carbs) : 0,
+        sugar: sugar ? parseFloat(sugar) : undefined,
+        fiber: fiber ? parseFloat(fiber) : 0,
+      },
+    };
 
-    // Check for unknown items
-    const unknownItems = validItems.filter(item => !item.foodId);
-    if (unknownItems.length > 0) {
-      toast({
-        title: 'Alimentos desconocidos',
-        description: `${unknownItems.length} alimento(s) no están en la base de datos. Créalos primero.`,
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    setIsSaving(true);
     try {
-      const now = new Date();
-      
-      const itemsWithCalories = validItems.map(item => ({
-        name: item.name,
-        qty: parseFloat(item.qty),
-        unit: item.unit,
-        kcal: calculateItemKcal(item),
-      }));
+      await db.foods.add(food);
 
-      const totalKcal = itemsWithCalories.reduce((sum, item) => sum + item.kcal, 0);
+      // 2. Registrar automáticamente en el diario de hoy
+      const [hours] = time.split(':').map(Number);
+      const hour = hours;
       
+      let mealType: 'breakfast' | 'lunch' | 'dinner' | 'snack' = 'snack';
+      
+      if (hour >= 5 && hour < 12) mealType = 'breakfast';
+      else if (hour >= 12 && hour < 17) mealType = 'lunch';
+      else if (hour >= 17 && hour < 21) mealType = 'snack';
+      else mealType = 'dinner';
+
       const entry: Entry = {
-        id: `entry-${now.getTime()}`,
-        dateISO: getTodayDateISO(), // FIX: Usar fecha local en vez de UTC
-        type: selectedMeal as any,
-        items: itemsWithCalories,
-        totalKcal,
+        id: `entry-${Date.now()}`,
+        dateISO: getTodayDateISO(),
+        time: time,
+        type: mealType,
+        items: [{
+          name: food.name,
+          qty: 100, // Por defecto 100g si no se especifica
+          unit: 'g',
+          kcal: food.nutritionPer100.kcal,
+        }],
+        totalKcal: food.nutritionPer100.kcal,
       };
 
       await db.entries.add(entry);
       
       toast({
         title: '✓ Guardado',
-        description: `${itemsWithCalories.length} items • ${totalKcal} kcal`,
+        description: `${name} añadido a tu diario`,
       });
-
+      
       // Reset form
-      setItems([{ id: '1', name: '', qty: '', unit: 'g' }]);
-      setSelectedMeal('');
+      setName('');
+      setBrand('');
+      setKcal('');
+      setProtein('');
+      setFat('');
+      setCarbs('');
+      setSugar('');
+      setFiber('');
+      setNutritionText('');
+      setShowNutrition(false);
+      
+      // Opcional: Navegar a "Today" para ver el registro
+      navigate('/today'); 
+
     } catch (error) {
+      console.error(error);
       toast({
         title: 'Error',
-        description: 'No se pudo guardar la entrada',
+        description: 'No se pudo guardar',
         variant: 'destructive',
       });
-    } finally {
-      setIsSaving(false);
     }
-  };
-
-  const handleCreateFood = (itemId: string, itemName: string) => {
-    // Si el campo está vacío, abrir el diálogo vacío
-    if (!itemName.trim()) {
-      setCreateFoodName('');
-      setCreateFoodDialog(true);
-      return;
-    }
-    
-    // Validar si ya existe un alimento con ese nombre exacto
-    const normalized = itemName.trim().toLowerCase();
-    const existing = foods.find(f => {
-      const foodName = f.brand 
-        ? `${f.name} (${f.brand})`.toLowerCase()
-        : f.name.toLowerCase();
-      return foodName === normalized;
-    });
-    
-    if (existing) {
-      toast({
-        title: 'Ya existe en tu base de datos',
-        description: 'Este alimento ya está registrado. Selecciónalo del dropdown o edítalo desde la página Base de Datos.',
-        variant: 'destructive',
-      });
-      return;
-    }
-    
-    setCreateFoodName(itemName);
-    setCreateFoodDialog(true);
-  };
-
-  const handleFoodCreated = (food: FoodItem) => {
-    setFoods([...foods, food]);
-    // Auto-select the newly created food for the item that triggered creation
-    const displayName = `${food.name}${food.brand ? ` (${food.brand})` : ''}`;
-    const itemWithName = items.find(item => 
-      item.name.toLowerCase().includes(food.name.toLowerCase())
-    );
-    if (itemWithName) {
-      handleSelectFood(itemWithName.id, food);
-    }
-  };
-
-  const getItemPreview = (item: ItemInput): string => {
-    if (!item.qty || !item.foodId) return '';
-    const kcal = calculateItemKcal(item);
-    return kcal > 0 ? `≈ ${kcal} kcal` : '';
   };
 
   return (
-    <>
-      <div className="min-h-screen bg-background p-4 pb-24">
-        <div className="max-w-2xl mx-auto space-y-6">
-          <div className="text-center space-y-2">
-            <h1 className="text-3xl font-bold text-foreground">Registrar</h1>
-            <p className="text-muted-foreground">
-              Añade lo que has comido, si quieres
-            </p>
+    <div className="min-h-screen bg-background pb-24">
+      <div className="max-w-md mx-auto p-6 space-y-6">
+        <div className="space-y-2">
+          <h1 className="text-2xl font-serif font-bold">Crear alimento nuevo</h1>
+          <p className="text-muted-foreground font-serif italic">
+            Añade un alimento a tu base de datos personal. Valores por 100g.
+          </p>
+        </div>
+
+        <div className="space-y-4">
+          <div className="grid grid-cols-4 gap-4">
+            <div className="col-span-3 space-y-2">
+              <Label htmlFor="food-name">Nombre del alimento *</Label>
+              <Input
+                id="food-name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="Ej: Bizcocho chocolate"
+                autoFocus
+              />
+            </div>
+            <div className="col-span-1 space-y-2">
+              <Label htmlFor="food-time">Hora</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className="w-full px-2 font-normal text-center"
+                  >
+                    {time}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-56 p-3">
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-xs font-medium">Editar hora</Label>
+                      <Clock className="w-3 h-3 text-muted-foreground" />
+                    </div>
+                    <Input
+                      value={time}
+                      onChange={(e) => setTime(e.target.value)}
+                      onBlur={handleTimeBlur}
+                      className="text-center text-2xl font-mono tracking-widest h-12"
+                      maxLength={5}
+                      placeholder="HH:MM"
+                    />
+                    <div className="grid grid-cols-2 gap-2">
+                      <Button size="sm" variant="secondary" onClick={setNow} className="col-span-2">
+                        Ahora
+                      </Button>
+                      <Button size="sm" variant="outline" onClick={() => adjustTime(-15)}>
+                        -15 min
+                      </Button>
+                      <Button size="sm" variant="outline" onClick={() => adjustTime(-30)}>
+                        -30 min
+                      </Button>
+                      <Button size="sm" variant="outline" onClick={() => adjustTime(-60)}>
+                        -1 h
+                      </Button>
+                      <Button size="sm" variant="outline" onClick={() => adjustTime(-120)}>
+                        -2 h
+                      </Button>
+                    </div>
+                  </div>
+                </PopoverContent>
+              </Popover>
+            </div>
           </div>
 
-          <Card className="p-6 space-y-4 bg-gradient-card shadow-card">
-            <div className="space-y-4">
-              {items.map((item, index) => (
-                <div key={item.id} className="space-y-3 pb-4 border-b border-border last:border-0 last:pb-0">
-                  <div className="flex items-center justify-between">
-                    <Label className="text-sm font-medium">
-                      Item {index + 1}
-                    </Label>
-                    {items.length > 1 && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => removeItem(item.id)}
-                      >
-                        <X className="w-4 h-4" />
-                      </Button>
-                    )}
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor={`name-${item.id}`}>Alimento</Label>
-                    <div className="relative flex gap-2">
-                      <div className="relative flex-1">
-                        <Input
-                          id={`name-${item.id}`}
-                          value={item.name}
-                          onChange={(e) => handleNameChange(item.id, e.target.value)}
-                          placeholder="Ej: yogur griego, avena, manzana..."
-                          autoComplete="off"
-                        />
-                        
-                        {suggestions[item.id] && suggestions[item.id].length > 0 && (
-                          <Card className="absolute z-10 w-full mt-1 max-h-48 overflow-y-auto shadow-elevated">
-                            {suggestions[item.id].map(food => (
-                              <button
-                                key={food.id}
-                                onClick={() => handleSelectFood(item.id, food)}
-                                className="w-full text-left px-3 py-2 hover:bg-muted transition-colors border-b border-border last:border-0"
-                              >
-                                <p className="text-sm font-medium">
-                                  {food.name}{food.brand ? ` (${food.brand})` : ''}
-                                </p>
-                                <p className="text-xs text-muted-foreground">
-                                  {food.nutritionPer100.kcal} kcal/100g
-                                </p>
-                              </button>
-                            ))}
-                          </Card>
-                        )}
-                      </div>
-                      
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => handleCreateFood(item.id, item.name)}
-                        className="h-10 flex-shrink-0"
-                        title="Crear alimento nuevo"
-                      >
-                        <Plus className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="space-y-2">
-                      <Label htmlFor={`qty-${item.id}`}>Cantidad</Label>
-                      <Input
-                        id={`qty-${item.id}`}
-                        type="number"
-                        step="0.1"
-                        value={item.qty}
-                        onChange={(e) => handleQtyChange(item.id, e.target.value)}
-                        placeholder="125"
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor={`unit-${item.id}`}>Unidad</Label>
-                      <Select value={item.unit} onValueChange={(val) => handleUnitChange(item.id, val)}>
-                        <SelectTrigger id={`unit-${item.id}`}>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {COMMON_UNITS.map(unit => (
-                            <SelectItem key={unit.value} value={unit.value}>
-                              {unit.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-
-                  {item.foodId && item.qty && (
-                    <div className="flex items-center justify-between p-2 bg-muted/50 rounded-md">
-                      <span className="text-xs text-muted-foreground">Calorías estimadas:</span>
-                      <Badge variant="secondary">{getItemPreview(item)}</Badge>
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-
+          {!showNutrition ? (
             <Button
-              onClick={addItem}
+              type="button"
               variant="outline"
-              className="w-full"
+              className="w-full border-dashed"
+              onClick={() => setShowNutrition(true)}
             >
-              <Plus className="w-4 h-4 mr-2" />
-              Añadir otro item
+              + Añadir valores nutricionales
             </Button>
-          </Card>
-
-          {items.some(item => item.name && item.qty) && (
-            <Card className="p-6 space-y-4 bg-gradient-card shadow-elevated">
-              <div className="space-y-3">
-                <Label className="text-sm font-medium">Tipo de comida:</Label>
-                <div className="flex gap-2 flex-wrap">
-                  {MEAL_TYPES.map((type) => (
-                    <Badge
-                      key={type.value}
-                      variant={selectedMeal === type.value ? 'default' : 'outline'}
-                      className="cursor-pointer px-4 py-2"
-                      onClick={() => setSelectedMeal(type.value)}
-                    >
-                      {type.label}
-                    </Badge>
-                  ))}
-                </div>
+          ) : (
+            <div className="space-y-4 animate-in fade-in slide-in-from-top-2 border rounded-lg p-4 bg-card">
+               <div className="space-y-2">
+                <Label htmlFor="food-brand">Marca (opcional)</Label>
+                <Input
+                  id="food-brand"
+                  value={brand}
+                  onChange={(e) => setBrand(e.target.value)}
+                  placeholder="Ej: Mercadona"
+                />
               </div>
 
+              <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full gap-2"
+                    onClick={() => window.open('https://es.openfoodfacts.org/', '_blank')}
+                    type="button"
+                  >
+                    <Info className="w-4 h-4" />
+                    ¿No tienes los datos? Buscar en Open Food Facts
+                    <ExternalLink className="w-3 h-3" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent className="max-w-xs p-4 text-sm" side="bottom">
+                  <div className="space-y-2">
+                    <p className="font-semibold">¿Qué es Open Food Facts?</p>
+                    <p>
+                      Base de datos colaborativa mundial con más de 3 millones de productos.
+                      Proyecto open source mantenido por voluntarios.
+                    </p>
+                  </div>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+
+          <Tabs defaultValue="paste" className="w-full">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="paste">Pegar info</TabsTrigger>
+              <TabsTrigger value="manual">Manual</TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="paste" className="space-y-3">
+              <div className="space-y-2">
+                <Label htmlFor="nutrition-text">
+                  Información nutricional (por 100g)
+                </Label>
+                <Textarea
+                  id="nutrition-text"
+                  value={nutritionText}
+                  onChange={(e) => setNutritionText(e.target.value)}
+                  placeholder="Pega aquí la info nutricional del paquete&#10;Ej: Valor energético: 488 kcal. Grasas: 33,5 g. Proteínas: 4,5 g..."
+                  className="min-h-[120px] text-sm"
+                />
+              </div>
+              
               <Button
-                onClick={handleSave}
-                disabled={!selectedMeal || isSaving}
-                className="w-full bg-gradient-warm"
-                size="lg"
+                onClick={handleExtract}
+                variant="secondary"
+                className="w-full"
               >
-                {isSaving ? (
-                  <>
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    Guardando...
-                  </>
-                ) : (
-                  <>
-                    <Save className="w-4 h-4 mr-2" />
-                    Guardar
-                  </>
-                )}
+                <Sparkles className="w-4 h-4 mr-2" />
+                Extraer valores
               </Button>
-            </Card>
+            </TabsContent>
+
+            <TabsContent value="manual" className="space-y-3">
+              <p className="text-sm text-muted-foreground">
+                Introduce los valores manualmente (por 100g)
+              </p>
+            </TabsContent>
+          </Tabs>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-2">
+              <Label htmlFor="kcal">Calorías (kcal) *</Label>
+              <Input
+                id="kcal"
+                type="number"
+                step="0.1"
+                value={kcal}
+                onChange={(e) => setKcal(e.target.value)}
+                placeholder="488"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="protein">Proteínas (g)</Label>
+              <Input
+                id="protein"
+                type="number"
+                step="0.1"
+                value={protein}
+                onChange={(e) => setProtein(e.target.value)}
+                placeholder="4.5"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="fat">Grasas (g)</Label>
+              <Input
+                id="fat"
+                type="number"
+                step="0.1"
+                value={fat}
+                onChange={(e) => setFat(e.target.value)}
+                placeholder="33.5"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="carbs">Hidratos (g)</Label>
+              <Input
+                id="carbs"
+                type="number"
+                step="0.1"
+                value={carbs}
+                onChange={(e) => setCarbs(e.target.value)}
+                placeholder="41.2"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="sugar">Azúcares (g)</Label>
+              <Input
+                id="sugar"
+                type="number"
+                step="0.1"
+                value={sugar}
+                onChange={(e) => setSugar(e.target.value)}
+                placeholder="17.2"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="fiber">Fibra (g)</Label>
+              <Input
+                id="fiber"
+                type="number"
+                step="0.1"
+                value={fiber}
+                onChange={(e) => setFiber(e.target.value)}
+                placeholder="1.9"
+              />
+            </div>
+          </div>
+            </div>
           )}
 
-          <div className="text-center text-sm text-muted-foreground pt-8 space-y-1">
-            <p>🔒 Tus datos se quedan aquí.</p>
-            <p>Puedes exportarlos o borrarlos cuando quieras.</p>
+          <div className="flex gap-3 pt-4">
+            <Button
+              variant="outline"
+              className="flex-1"
+              onClick={() => {
+                setName('');
+                setShowNutrition(false);
+                navigate(-1);
+              }}
+            >
+              Cancelar
+            </Button>
+            <Button onClick={handleSave} className="flex-1">
+              Guardar alimento
+            </Button>
           </div>
         </div>
       </div>
-
-      <CreateFoodDialog
-        open={createFoodDialog}
-        onOpenChange={setCreateFoodDialog}
-        defaultName={createFoodName}
-        onFoodCreated={handleFoodCreated}
-      />
-      
       <BottomNav />
-    </>
+    </div>
   );
 };
 

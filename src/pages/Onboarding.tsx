@@ -89,7 +89,7 @@ const Onboarding = () => {
       <div className="max-w-xl w-full space-y-6">
         <div className="text-center space-y-2">
           <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-gradient-warm mb-4">
-            <User className="w-8 h-8 text-white" />
+            <User className="w-8 h-8 text-primary" />
           </div>
           <h1 className="text-3xl font-bold text-foreground">Bienvenido a Trazaria</h1>
           <p className="text-muted-foreground">
@@ -165,7 +165,7 @@ const Onboarding = () => {
             <Button
               onClick={() => setStep(2)}
               disabled={!age || !height || !weight}
-              className="w-full bg-gradient-warm"
+              className="w-full bg-gradient-warm text-primary hover:text-primary"
               size="lg"
             >
               Siguiente
@@ -235,7 +235,7 @@ const Onboarding = () => {
               </Button>
               <Button
                 onClick={() => setStep(3)}
-                className="flex-1 bg-gradient-warm"
+                className="flex-1 bg-gradient-warm text-primary hover:text-primary"
                 size="lg"
               >
                 Ver mi objetivo
@@ -249,7 +249,7 @@ const Onboarding = () => {
             <div className="space-y-4">
               <div className="text-center space-y-2">
                 <div className="inline-flex items-center justify-center w-14 h-14 rounded-full bg-gradient-warm mb-2">
-                  <Calculator className="w-7 h-7 text-white" />
+                  <Calculator className="w-7 h-7 text-primary" />
                 </div>
                 <h2 className="text-xl font-semibold">Tu objetivo diario calculado</h2>
               </div>
@@ -314,7 +314,7 @@ const Onboarding = () => {
               </Button>
               <Button
                 onClick={handleComplete}
-                className="flex-1 bg-gradient-warm"
+                className="flex-1 bg-gradient-warm text-primary hover:text-primary"
                 size="lg"
               >
                 Completar

@@ -278,7 +278,7 @@ const Database = () => {
         <div className="max-w-4xl mx-auto space-y-6">
           <div className="text-center space-y-2">
             <div className="inline-flex items-center justify-center w-14 h-14 rounded-full bg-gradient-warm mb-2">
-              <DatabaseIcon className="w-7 h-7 text-white" />
+              <DatabaseIcon className="w-7 h-7 text-primary" />
             </div>
             <h1 className="text-3xl font-bold text-foreground">Base de datos</h1>
             <p className="text-muted-foreground">
@@ -343,7 +343,7 @@ const Database = () => {
                       ))}
                     </SelectContent>
                   </Select>
-                  <Button onClick={openCreateFood} className="bg-gradient-warm">
+                  <Button onClick={openCreateFood} className="bg-gradient-warm text-primary hover:text-primary">
                     <Plus className="w-4 h-4 mr-2" />
                     Nuevo alimento
                   </Button>
@@ -447,7 +447,7 @@ const Database = () => {
                   <p className="text-sm text-muted-foreground">
                     Define equivalencias para facilitar el registro
                   </p>
-                  <Button onClick={openCreateEquiv} className="bg-gradient-warm">
+                  <Button onClick={openCreateEquiv} className="bg-gradient-warm text-primary hover:text-primary">
                     <Plus className="w-4 h-4 mr-2" />
                     Nueva equivalencia
                   </Button>
@@ -657,7 +657,7 @@ const Database = () => {
             <Button 
               onClick={handleSaveFood}
               disabled={!foodForm.name || !foodForm.nutritionPer100?.kcal}
-              className="bg-gradient-warm"
+              className="bg-gradient-warm text-primary hover:text-primary"
             >
               {editingFood ? 'Actualizar' : 'Crear'}
             </Button>
@@ -730,7 +730,7 @@ const Database = () => {
             <Button 
               onClick={handleSaveEquiv}
               disabled={!equivForm.name || !equivForm.unitLabel || !equivForm.gramsPerUnit}
-              className="bg-gradient-warm"
+              className="bg-gradient-warm text-primary hover:text-primary"
             >
               {editingEquiv ? 'Actualizar' : 'Crear'}
             </Button>

@@ -30,7 +30,7 @@ const BottomNav = () => {
                   key={item.path}
                   onClick={() => navigate(item.path)}
                   size="icon"
-                  className="w-14 h-14 rounded-full bg-gradient-warm shadow-elevated -mt-6"
+                  className="w-14 h-14 rounded-full bg-gradient-warm shadow-elevated -mt-6 text-primary hover:text-primary"
                 >
                   <Icon className="w-6 h-6" />
                 </Button>
