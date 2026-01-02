@@ -12,6 +12,10 @@ const WeekView = () => {
     avgProtein: 0,
     avgCarbs: 0,
     avgFat: 0,
+    avgSaturatedFat: 0,
+    avgSugar: 0,
+    avgFiber: 0,
+    avgSalt: 0,
   });
 
   useEffect(() => {
@@ -46,6 +50,18 @@ const WeekView = () => {
       const totalFat = entries.reduce((sum, e) => 
         sum + e.items.reduce((s, i) => s + (i.fat || 0), 0), 0
       );
+      const totalSaturatedFat = entries.reduce((sum, e) => 
+        sum + e.items.reduce((s, i) => s + (i.saturatedFat || 0), 0), 0
+      );
+      const totalSugar = entries.reduce((sum, e) => 
+        sum + e.items.reduce((s, i) => s + (i.sugar || 0), 0), 0
+      );
+      const totalFiber = entries.reduce((sum, e) => 
+        sum + e.items.reduce((s, i) => s + (i.fiber || 0), 0), 0
+      );
+      const totalSalt = entries.reduce((sum, e) => 
+        sum + e.items.reduce((s, i) => s + (i.salt || 0), 0), 0
+      );
 
       const daysWithData = new Set(entries.map(e => e.dateISO)).size;
 
@@ -54,6 +70,10 @@ const WeekView = () => {
         avgProtein: Math.round(totalProtein / daysWithData),
         avgCarbs: Math.round(totalCarbs / daysWithData),
         avgFat: Math.round(totalFat / daysWithData),
+        avgSaturatedFat: Math.round(totalSaturatedFat / daysWithData * 10) / 10,
+        avgSugar: Math.round(totalSugar / daysWithData * 10) / 10,
+        avgFiber: Math.round(totalFiber / daysWithData * 10) / 10,
+        avgSalt: Math.round(totalSalt / daysWithData * 100) / 100,
       });
     }
   };
@@ -106,18 +126,36 @@ const WeekView = () => {
 
         <Card className="p-4 bg-gradient-card shadow-card">
           <div className="flex items-center gap-2 mb-2">
+            <Activity className="w-4 h-4 text-primary" />
+            <p className="text-sm text-muted-foreground">Grasas</p>
+          </div>
+          <p className="text-2xl font-bold">{stats.avgFat}g</p>
+          <p className="text-xs text-muted-foreground">Sat: {stats.avgSaturatedFat}g</p>
+        </Card>
+
+        <Card className="p-4 bg-gradient-card shadow-card">
+          <div className="flex items-center gap-2 mb-2">
             <TrendingDown className="w-4 h-4 text-primary" />
             <p className="text-sm text-muted-foreground">Carbohidratos</p>
           </div>
           <p className="text-2xl font-bold">{stats.avgCarbs}g</p>
+          <p className="text-xs text-muted-foreground">Azúcar: {stats.avgSugar}g</p>
+        </Card>
+
+        <Card className="p-4 bg-gradient-card shadow-card">
+          <div className="flex items-center gap-2 mb-2">
+            <TrendingUp className="w-4 h-4 text-primary" />
+            <p className="text-sm text-muted-foreground">Fibra</p>
+          </div>
+          <p className="text-2xl font-bold">{stats.avgFiber}g</p>
         </Card>
 
         <Card className="p-4 bg-gradient-card shadow-card">
           <div className="flex items-center gap-2 mb-2">
             <Activity className="w-4 h-4 text-primary" />
-            <p className="text-sm text-muted-foreground">Grasas</p>
+            <p className="text-sm text-muted-foreground">Sal</p>
           </div>
-          <p className="text-2xl font-bold">{stats.avgFat}g</p>
+          <p className="text-2xl font-bold">{stats.avgSalt}g</p>
         </Card>
       </div>
 

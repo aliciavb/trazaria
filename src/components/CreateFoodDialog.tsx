@@ -40,11 +40,15 @@ const CreateFoodDialog = ({
   const [kcal, setKcal] = useState('');
   const [protein, setProtein] = useState('');
   const [fat, setFat] = useState('');
+  const [saturatedFat, setSaturatedFat] = useState('');
   const [carbs, setCarbs] = useState('');
   const [sugar, setSugar] = useState('');
   const [fiber, setFiber] = useState('');
+  const [salt, setSalt] = useState('');
   const [nutritionText, setNutritionText] = useState('');
   const [showNutrition, setShowNutrition] = useState(false);
+  const [suggestions, setSuggestions] = useState<FoodItem[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
   const { toast } = useToast();
 
   // Actualizar el nombre cuando cambia defaultName (autorrellenado)
@@ -54,15 +58,57 @@ const CreateFoodDialog = ({
     }
   }, [defaultName]);
 
+  // Buscar sugerencias
+  useEffect(() => {
+    const fetchSuggestions = async () => {
+      if (name.length < 2) {
+        setSuggestions([]);
+        setShowSuggestions(false);
+        return;
+      }
+
+      try {
+        const results = await db.foods
+          .filter(f => f.name.toLowerCase().includes(name.toLowerCase()))
+          .limit(5)
+          .toArray();
+        setSuggestions(results);
+        setShowSuggestions(results.length > 0);
+      } catch (error) {
+        console.error('Error fetching suggestions:', error);
+      }
+    };
+
+    const timeoutId = setTimeout(fetchSuggestions, 300);
+    return () => clearTimeout(timeoutId);
+  }, [name]);
+
+  const selectSuggestion = (food: FoodItem) => {
+    setName(food.name);
+    setBrand(food.brand || '');
+    setKcal(food.nutritionPer100.kcal.toString());
+    setProtein(food.nutritionPer100.protein.toString());
+    setFat(food.nutritionPer100.fat.toString());
+    setSaturatedFat(food.nutritionPer100.saturatedFat?.toString() || '');
+    setCarbs(food.nutritionPer100.carbs.toString());
+    setSugar(food.nutritionPer100.sugar?.toString() || '');
+    setFiber(food.nutritionPer100.fiber?.toString() || '');
+    setSalt(food.nutritionPer100.salt?.toString() || '');
+    setShowNutrition(true);
+    setShowSuggestions(false);
+  };
+
   const handleExtract = () => {
     const extracted = extractNutritionFromText(nutritionText);
     
     if (extracted.kcal) setKcal(extracted.kcal.toString());
     if (extracted.protein) setProtein(extracted.protein.toString());
     if (extracted.fat) setFat(extracted.fat.toString());
+    if (extracted.saturatedFat) setSaturatedFat(extracted.saturatedFat.toString());
     if (extracted.carbs) setCarbs(extracted.carbs.toString());
     if (extracted.sugar) setSugar(extracted.sugar.toString());
     if (extracted.fiber) setFiber(extracted.fiber.toString());
+    if (extracted.salt) setSalt(extracted.salt.toString());
     
     const foundCount = Object.values(extracted).filter(v => v !== undefined).length;
     
@@ -101,9 +147,11 @@ const CreateFoodDialog = ({
         kcal: kcal ? parseFloat(kcal) : 0,
         protein: protein ? parseFloat(protein) : 0,
         fat: fat ? parseFloat(fat) : 0,
+        saturatedFat: saturatedFat ? parseFloat(saturatedFat) : undefined,
         carbs: carbs ? parseFloat(carbs) : 0,
         sugar: sugar ? parseFloat(sugar) : undefined,
         fiber: fiber ? parseFloat(fiber) : 0,
+        salt: salt ? parseFloat(salt) : undefined,
       },
     };
 
@@ -124,9 +172,11 @@ const CreateFoodDialog = ({
       setKcal('');
       setProtein('');
       setFat('');
+      setSaturatedFat('');
       setCarbs('');
       setSugar('');
       setFiber('');
+      setSalt('');
       setNutritionText('');
       setShowNutrition(false);
     } catch (error) {
@@ -154,14 +204,31 @@ const CreateFoodDialog = ({
 
         <div className="px-6 overflow-y-auto flex-1">
           <div className="space-y-4 pb-4">
-          <div className="space-y-2">
+          <div className="space-y-2 relative">
             <Label htmlFor="food-name">Nombre del alimento *</Label>
             <Input
               id="food-name"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="Ej: Bizcocho chocolate"
+              onFocus={() => name.length >= 2 && setShowSuggestions(true)}
+              onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
+              placeholder="Ej: Huevos revueltos"
+              autoComplete="off"
             />
+            {showSuggestions && suggestions.length > 0 && (
+              <div className="absolute z-10 w-full bg-popover border rounded-md shadow-md mt-1 max-h-40 overflow-y-auto">
+                {suggestions.map((food) => (
+                  <button
+                    key={food.id}
+                    className="w-full text-left px-3 py-2 text-sm hover:bg-accent hover:text-accent-foreground transition-colors"
+                    onClick={() => selectSuggestion(food)}
+                  >
+                    <span className="font-medium">{food.name}</span>
+                    {food.brand && <span className="text-muted-foreground ml-2 text-xs">({food.brand})</span>}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
 
           {!showNutrition ? (
@@ -181,7 +248,7 @@ const CreateFoodDialog = ({
                   id="food-brand"
                   value={brand}
                   onChange={(e) => setBrand(e.target.value)}
-                  placeholder="Ej: Mercadona"
+                  placeholder="Ej: La Huerta"
                 />
               </div>
 
@@ -255,7 +322,7 @@ const CreateFoodDialog = ({
 
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-2">
-              <Label htmlFor="kcal">Calorías (kcal) *</Label>
+              <Label htmlFor="kcal">Valor Energético (kcal) *</Label>
               <Input
                 id="kcal"
                 type="number"
@@ -263,6 +330,70 @@ const CreateFoodDialog = ({
                 value={kcal}
                 onChange={(e) => setKcal(e.target.value)}
                 placeholder="488"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="fat">Grasas (g)</Label>
+              <Input
+                id="fat"
+                type="number"
+                step="0.1"
+                value={fat}
+                onChange={(e) => setFat(e.target.value)}
+                placeholder="33.5"
+              />
+            </div>
+
+            <div className="space-y-2 pl-4 border-l-2 border-muted">
+              <Label htmlFor="saturatedFat" className="text-xs text-muted-foreground">de las cuales saturadas (g)</Label>
+              <Input
+                id="saturatedFat"
+                type="number"
+                step="0.1"
+                value={saturatedFat}
+                onChange={(e) => setSaturatedFat(e.target.value)}
+                placeholder="12.0"
+                className="h-8 text-sm"
+              />
+            </div>
+            
+            <div className="col-span-1"></div>
+
+            <div className="space-y-2">
+              <Label htmlFor="carbs">Hidratos de carbono (g)</Label>
+              <Input
+                id="carbs"
+                type="number"
+                step="0.1"
+                value={carbs}
+                onChange={(e) => setCarbs(e.target.value)}
+                placeholder="41.2"
+              />
+            </div>
+
+            <div className="space-y-2 pl-4 border-l-2 border-muted">
+              <Label htmlFor="sugar" className="text-xs text-muted-foreground">de los cuales azúcares (g)</Label>
+              <Input
+                id="sugar"
+                type="number"
+                step="0.1"
+                value={sugar}
+                onChange={(e) => setSugar(e.target.value)}
+                placeholder="17.2"
+                className="h-8 text-sm"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="fiber">Fibra alimentaria (g)</Label>
+              <Input
+                id="fiber"
+                type="number"
+                step="0.1"
+                value={fiber}
+                onChange={(e) => setFiber(e.target.value)}
+                placeholder="1.9"
               />
             </div>
 
@@ -279,50 +410,14 @@ const CreateFoodDialog = ({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="fat">Grasas (g)</Label>
+              <Label htmlFor="salt">Sal (g)</Label>
               <Input
-                id="fat"
+                id="salt"
                 type="number"
-                step="0.1"
-                value={fat}
-                onChange={(e) => setFat(e.target.value)}
-                placeholder="33.5"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="carbs">Hidratos (g)</Label>
-              <Input
-                id="carbs"
-                type="number"
-                step="0.1"
-                value={carbs}
-                onChange={(e) => setCarbs(e.target.value)}
-                placeholder="41.2"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="sugar">Azúcares (g)</Label>
-              <Input
-                id="sugar"
-                type="number"
-                step="0.1"
-                value={sugar}
-                onChange={(e) => setSugar(e.target.value)}
-                placeholder="17.2"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="fiber">Fibra (g)</Label>
-              <Input
-                id="fiber"
-                type="number"
-                step="0.1"
-                value={fiber}
-                onChange={(e) => setFiber(e.target.value)}
-                placeholder="1.9"
+                step="0.01"
+                value={salt}
+                onChange={(e) => setSalt(e.target.value)}
+                placeholder="1.2"
               />
             </div>
           </div>

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
@@ -33,7 +33,7 @@ import {
 import { db, Entry, UserProfile } from '@/lib/db';
 import { getCalorieFormulaExplanation } from '@/lib/calories';
 import { getTodayDateISO } from '@/lib/utils';
-import { Apple, Coffee, Sunset, Cookie, Flame, MoreVertical, Trash2, Copy, Info, Smile, Meh, Frown, SmilePlus, Pizza, Pencil } from 'lucide-react';
+import { Apple, Coffee, Sunset, Cookie, Flame, MoreVertical, Trash2, Copy, Info, Smile, Meh, Frown, SmilePlus, Pizza, Pencil, Plus } from 'lucide-react';
 import BottomNav from '@/components/BottomNav';
 import { useToast } from '@/hooks/use-toast';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
@@ -71,6 +71,7 @@ const getFoodDisplayName = async (foodId?: string, fallbackName?: string): Promi
 };
 
 const Today = () => {
+  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const dateParam = searchParams.get('date');
   const [entries, setEntries] = useState<Entry[]>([]);
@@ -79,7 +80,7 @@ const Today = () => {
   const [deleteDialog, setDeleteDialog] = useState<string | null>(null);
   const [foodNames, setFoodNames] = useState<Record<string, string>>({});
   const [dayHunger, setDayHunger] = useState<'very-hungry' | 'hungry' | 'satisfied' | 'full' | 'very-full' | null>(null);
-  const [editingEntry, setEditingEntry] = useState<Entry | null>(null);
+  const [editingEntry, setEditingEntry] = useState<any | null>(null);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -91,8 +92,19 @@ const Today = () => {
 
     try {
       // Recalculate total calories
-      const totalKcal = editingEntry.items.reduce((sum, item) => sum + (item.kcal || 0), 0);
-      const updatedEntry = { ...editingEntry, totalKcal };
+      const totalKcal = editingEntry.items.reduce((sum: number, item: any) => sum + (parseFloat(item.kcal) || 0), 0);
+      
+      // Clean up internal properties and ensure numbers
+      const cleanItems = editingEntry.items.map((item: any) => {
+        const { _kcalPerUnit, ...rest } = item;
+        return {
+          ...rest,
+          qty: parseFloat(item.qty) || 0,
+          kcal: parseFloat(item.kcal) || 0,
+        };
+      });
+
+      const updatedEntry = { ...editingEntry, items: cleanItems, totalKcal };
 
       await db.entries.put(updatedEntry);
 
@@ -207,7 +219,25 @@ const Today = () => {
     );
   }
 
-  const CalorieSummary = () => (
+  const CalorieSummary = () => {
+    const getTitle = () => {
+      const todayISO = getTodayDateISO();
+      const currentISO = dateParam || todayISO;
+      
+      if (currentISO === todayISO) return "Calorías de hoy";
+      
+      const yesterday = new Date();
+      yesterday.setDate(yesterday.getDate() - 1);
+      const yISO = `${yesterday.getFullYear()}-${String(yesterday.getMonth() + 1).padStart(2, '0')}-${String(yesterday.getDate()).padStart(2, '0')}`;
+      
+      if (currentISO === yISO) return "Calorías de ayer";
+      
+      const [y, m, d] = currentISO.split('-').map(Number);
+      const date = new Date(y, m - 1, d);
+      return `Calorías del ${date.toLocaleDateString('es-ES', { day: 'numeric', month: 'long' })}`;
+    };
+
+    return (
     <Card className="p-6 bg-gradient-card shadow-elevated border-2 border-primary/20">
       <div className="flex items-center gap-4">
         
@@ -215,7 +245,7 @@ const Today = () => {
           <div className="flex items-end justify-between">
             <div>
               <div className="flex items-center gap-2">
-                <p className="text-sm text-muted-foreground">Calorías de hoy</p>
+                <p className="text-sm text-muted-foreground">{getTitle()}</p>
                 {profile && (
                   <Dialog>
                     <DialogTrigger asChild>
@@ -245,7 +275,7 @@ const Today = () => {
                 )}
               </div>
               <p className="text-3xl font-bold text-foreground">
-                {totalKcal} <span className="text-xl text-muted-foreground">/ {targetKcal}</span>
+                {Number(totalKcal.toFixed(1))} <span className="text-xl text-muted-foreground">/ {targetKcal}</span>
               </p>
             </div>
             <Badge variant={totalKcal > targetKcal ? 'destructive' : 'secondary'}>
@@ -257,18 +287,19 @@ const Today = () => {
           
           {totalKcal > targetKcal && (
             <p className="text-xs text-destructive">
-              +{totalKcal - targetKcal} kcal sobre el objetivo
+              +{Number((totalKcal - targetKcal).toFixed(1))} kcal sobre el objetivo
             </p>
           )}
           {totalKcal < targetKcal && targetKcal - totalKcal > 200 && (
             <p className="text-xs text-muted-foreground">
-              Quedan {targetKcal - totalKcal} kcal para tu objetivo
+              Quedan {Number((targetKcal - totalKcal).toFixed(1))} kcal para tu objetivo
             </p>
           )}
         </div>
       </div>
     </Card>
   );
+  };
 
   return (
     <>
@@ -276,7 +307,16 @@ const Today = () => {
         <div className="max-w-5xl mx-auto space-y-6">
           <div className="flex items-center justify-between">
             <div className="space-y-1">
-              <h1 className="text-3xl font-serif font-bold text-foreground">{dateParam ? 'Registro' : 'Hoy'}</h1>
+              <div className="flex items-center gap-3">
+                <h1 className="text-3xl font-serif font-bold text-foreground">{dateParam ? 'Registro' : 'Hoy'}</h1>
+                <Button 
+                  size="icon" 
+                  className="h-8 w-8 rounded-full shadow-sm" 
+                  onClick={() => navigate(dateParam ? `/?date=${dateParam}` : '/')}
+                >
+                  <Plus className="h-5 w-5" />
+                </Button>
+              </div>
               <p className="text-muted-foreground font-serif">
                 {new Date(dateParam || new Date()).toLocaleDateString('es-ES', {
                   weekday: 'long',
@@ -293,7 +333,7 @@ const Today = () => {
                 <SheetTrigger asChild>
                   <Button variant="outline" size="sm" className="gap-2">
                     <Flame className="w-4 h-4 text-orange-500" />
-                    {totalKcal} kcal
+                    {Number(totalKcal.toFixed(1))} kcal
                   </Button>
                 </SheetTrigger>
                 <SheetContent side="right">
@@ -312,11 +352,22 @@ const Today = () => {
               {entries.length === 0 ? (
                 <Card className="p-8 text-center bg-gradient-card shadow-card">
                   <p className="text-muted-foreground">
-                    Aún no has registrado nada hoy.
+                    {dateParam && dateParam !== getTodayDateISO() 
+                      ? `No hay nada registrado el ${new Date(dateParam).toLocaleDateString('es-ES', { day: 'numeric', month: 'long' })}.`
+                      : "Aún no has registrado nada hoy."}
                   </p>
-                  <p className="text-sm text-muted-foreground mt-2">
-                    Cuando quieras, ve a "Registrar" para añadir algo.
-                  </p>
+                  {dateParam && dateParam !== getTodayDateISO() ? (
+                    <Button 
+                      className="mt-4" 
+                      onClick={() => navigate(`/register?date=${dateParam}`)}
+                    >
+                      Añadir
+                    </Button>
+                  ) : (
+                    <p className="text-sm text-muted-foreground mt-2">
+                      Cuando quieras, ve a "Registrar" para añadir algo.
+                    </p>
+                  )}
                 </Card>
               ) : (
                 <div className="space-y-6">
@@ -335,7 +386,7 @@ const Today = () => {
                             <h3 className="font-semibold text-lg">{MEAL_LABELS[type]}</h3>
                           </div>
                           <Badge variant="secondary" className="bg-primary/10 text-primary hover:bg-primary/20">
-                            {typeTotalKcal} kcal
+                            {Number(typeTotalKcal.toFixed(1))} kcal
                           </Badge>
                         </div>
 
@@ -363,7 +414,7 @@ const Today = () => {
                                           </span>
                                           {item.kcal && item.kcal > 0 && (
                                             <span className="text-xs font-medium text-muted-foreground w-16 text-right">
-                                              {item.kcal} kcal
+                                              {Number(item.kcal.toFixed(1))} kcal
                                             </span>
                                           )}
                                         </div>
@@ -378,7 +429,15 @@ const Today = () => {
                                       </Button>
                                     </DropdownMenuTrigger>
                                     <DropdownMenuContent align="end">
-                                      <DropdownMenuItem onClick={() => setEditingEntry(JSON.parse(JSON.stringify(entry)))}>
+                                      <DropdownMenuItem onClick={() => {
+                                        const entryToEdit = JSON.parse(JSON.stringify(entry));
+                                        // Calculate and store density for each item to allow safe editing
+                                        entryToEdit.items = entryToEdit.items.map((item: any) => ({
+                                          ...item,
+                                          _kcalPerUnit: (item.kcal && item.qty) ? item.kcal / item.qty : 0
+                                        }));
+                                        setEditingEntry(entryToEdit);
+                                      }}>
                                         <Pencil className="w-4 h-4 mr-2" />
                                         Editar
                                       </DropdownMenuItem>
@@ -547,13 +606,23 @@ const Today = () => {
                           type="number" 
                           value={item.qty} 
                           onChange={(e) => {
-                            const newQty = parseFloat(e.target.value) || 0;
-                            // Auto-calculate kcal based on ratio if kcal exists
-                            const ratio = item.qty > 0 ? newQty / item.qty : 1;
-                            const newKcal = item.kcal ? Math.round(item.kcal * ratio) : 0;
+                            const rawValue = e.target.value;
+                            const newQty = parseFloat(rawValue) || 0;
+                            
+                            // Use stored density (_kcalPerUnit) if available, otherwise fallback to current ratio
+                            // Note: use parseFloat on item.kcal/qty in case they are strings currently
+                            const currentKcal = parseFloat(item.kcal) || 0;
+                            const currentQty = parseFloat(item.qty) || 0;
+                            
+                            const density = (item as any)._kcalPerUnit !== undefined 
+                              ? (item as any)._kcalPerUnit 
+                              : (currentQty > 0 ? currentKcal / currentQty : 0);
+                            
+                            const newKcal = Math.round(density * newQty);
                             
                             const newItems = [...editingEntry.items];
-                            newItems[idx] = { ...item, qty: newQty, kcal: newKcal };
+                            // Store rawValue to allow empty string input
+                            newItems[idx] = { ...item, qty: rawValue, kcal: newKcal };
                             setEditingEntry({ ...editingEntry, items: newItems });
                           }}
                         />
@@ -573,10 +642,17 @@ const Today = () => {
                         <Label className="text-xs text-muted-foreground">Kcal</Label>
                         <Input 
                           type="number" 
-                          value={item.kcal || 0} 
+                          value={item.kcal} 
                           onChange={(e) => {
+                            const rawValue = e.target.value;
+                            const newKcal = parseFloat(rawValue) || 0;
                             const newItems = [...editingEntry.items];
-                            newItems[idx] = { ...item, kcal: parseFloat(e.target.value) || 0 };
+                            
+                            // Update density when manually changing kcal
+                            const currentQty = parseFloat(item.qty) || 0;
+                            const newDensity = currentQty > 0 ? newKcal / currentQty : 0;
+                            
+                            newItems[idx] = { ...item, kcal: rawValue, _kcalPerUnit: newDensity } as any;
                             setEditingEntry({ ...editingEntry, items: newItems });
                           }}
                         />

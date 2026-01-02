@@ -139,7 +139,7 @@ const Onboarding = () => {
                 <Input
                   id="height"
                   type="number"
-                  placeholder="Ej: 170"
+                  placeholder="Ej: 175"
                   value={height}
                   onChange={(e) => setHeight(e.target.value)}
                   min="100"
@@ -153,7 +153,7 @@ const Onboarding = () => {
                   id="weight"
                   type="number"
                   step="0.1"
-                  placeholder="Ej: 70"
+                  placeholder="Ej: 65.5"
                   value={weight}
                   onChange={(e) => setWeight(e.target.value)}
                   min="30"

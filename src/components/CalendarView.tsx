@@ -2,8 +2,8 @@ import { useState, useEffect } from 'react';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { ChevronLeft, ChevronRight, X, Apple, Coffee, Sunset, Cookie, Pencil, Copy } from 'lucide-react';
-import { db, Entry } from '@/lib/db';
+import { ChevronLeft, ChevronRight, X, Apple, Coffee, Sunset, Cookie, Pencil, Copy, Search, Plus, ArrowLeft, Trash2, ExternalLink } from 'lucide-react';
+import { db, Entry, FoodItem } from '@/lib/db';
 import { toLocalDateISO } from '@/lib/utils';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -16,6 +16,9 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { useToast } from '@/hooks/use-toast';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 const MEAL_ICONS = {
   breakfast: Coffee,
@@ -34,10 +37,96 @@ const MEAL_LABELS = {
 };
 
 const CalendarView = () => {
+  const { toast } = useToast();
   const navigate = useNavigate();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [entries, setEntries] = useState<Entry[]>([]);
   const [selectedDay, setSelectedDay] = useState<number | null>(null);
+
+  // Add Entry State
+  const [isAddingEntry, setIsAddingEntry] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [suggestions, setSuggestions] = useState<FoodItem[]>([]);
+  const [selectedFood, setSelectedFood] = useState<FoodItem | null>(null);
+  const [quantity, setQuantity] = useState('100');
+  const [mealType, setMealType] = useState<'breakfast' | 'lunch' | 'dinner' | 'snack'>('snack');
+
+  useEffect(() => {
+    const searchFoods = async () => {
+      if (searchTerm.length < 2) {
+        setSuggestions([]);
+        return;
+      }
+      const results = await db.foods
+        .filter(f => f.name.toLowerCase().includes(searchTerm.toLowerCase()))
+        .limit(5)
+        .toArray();
+      setSuggestions(results);
+    };
+    const timeout = setTimeout(searchFoods, 300);
+    return () => clearTimeout(timeout);
+  }, [searchTerm]);
+
+  const handleAddEntry = async () => {
+    if (!selectedFood || !selectedDay) return;
+    
+    try {
+      const date = new Date(currentDate.getFullYear(), currentDate.getMonth(), selectedDay);
+      const dateISO = toLocalDateISO(date);
+      
+      const qtyVal = parseFloat(quantity) || 0;
+      if (qtyVal <= 0) {
+        toast({ title: 'Error', description: 'Cantidad inválida', variant: 'destructive' });
+        return;
+      }
+      
+      const ratio = qtyVal / 100;
+      
+      const kcal = Number((selectedFood.nutritionPer100.kcal * ratio).toFixed(1));
+      const protein = Number((selectedFood.nutritionPer100.protein * ratio).toFixed(1));
+      const fat = Number((selectedFood.nutritionPer100.fat * ratio).toFixed(1));
+      const carbs = Number((selectedFood.nutritionPer100.carbs * ratio).toFixed(1));
+
+      const newEntry: Entry = {
+        id: `entry-${Date.now()}`,
+        dateISO,
+        time: new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }),
+        type: mealType,
+        items: [{
+          foodId: selectedFood.id,
+          name: selectedFood.name,
+          qty: qtyVal,
+          unit: 'g',
+          kcal,
+          protein,
+          fat,
+          carbs,
+        }],
+        totalKcal: kcal,
+      };
+
+      await db.entries.add(newEntry);
+      
+      toast({
+        title: 'Añadido',
+        description: 'Entrada añadida correctamente',
+      });
+
+      // Reset and refresh
+      setIsAddingEntry(false);
+      setSelectedFood(null);
+      setSearchTerm('');
+      setQuantity('100');
+      await loadMonthEntries();
+    } catch (error) {
+      console.error('Error adding entry:', error);
+      toast({
+        title: 'Error',
+        description: 'No se pudo guardar la entrada',
+        variant: 'destructive',
+      });
+    }
+  };
 
   useEffect(() => {
     loadMonthEntries();
@@ -48,11 +137,12 @@ const CalendarView = () => {
     const month = currentDate.getMonth();
     
     const firstDay = new Date(year, month, 1);
-    const lastDay = new Date(year, month + 1, 0);
+    // Use first day of next month to ensure we cover the full current month
+    const nextMonthFirstDay = new Date(year, month + 1, 1);
     
     const allEntries = await db.entries
       .where('dateISO')
-      .between(toLocalDateISO(firstDay), toLocalDateISO(lastDay)) // FIX: Usar fecha local
+      .between(toLocalDateISO(firstDay), toLocalDateISO(nextMonthFirstDay)) 
       .toArray();
     
     setEntries(allEntries);
@@ -125,7 +215,17 @@ const CalendarView = () => {
 
   const selectedDayEntries = selectedDay ? getEntriesForDay(selectedDay) : [];
   const selectedDateObj = selectedDay ? new Date(currentDate.getFullYear(), currentDate.getMonth(), selectedDay) : null;
-  const { toast } = useToast();
+
+  const handleDeleteEntry = async (entryId: string) => {
+    try {
+      await db.entries.delete(entryId);
+      toast({ title: 'Eliminado', description: 'Registro eliminado' });
+      await loadMonthEntries();
+    } catch (error) {
+      console.error(error);
+      toast({ title: 'Error', description: 'No se pudo eliminar', variant: 'destructive' });
+    }
+  };
 
   const handleDuplicate = async (targetDate: Date) => {
     if (!selectedDayEntries.length) return;
@@ -201,20 +301,20 @@ const CalendarView = () => {
         </p>
       </Card>
 
-      <Dialog open={selectedDay !== null} onOpenChange={(open) => !open && setSelectedDay(null)}>
+      <Dialog open={selectedDay !== null} onOpenChange={(open) => { if (!open) { setSelectedDay(null); setIsAddingEntry(false); } }}>
         <DialogContent className="max-w-md">
           <DialogHeader className="flex flex-row items-center justify-between pr-8">
             <DialogTitle>
               {selectedDateObj?.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })}
             </DialogTitle>
             <div className="flex gap-1">
-              {selectedDateObj && selectedDayEntries.length > 0 && (
+              {selectedDateObj && selectedDayEntries.length > 0 && !isAddingEntry && (
                 <Popover>
                   <PopoverTrigger asChild>
                     <Button 
                       variant="ghost" 
                       size="icon" 
-                      title="Duplicar a otro día"
+                      title="Duplicar día completo"
                     >
                       <Copy className="w-4 h-4" />
                     </Button>
@@ -229,20 +329,105 @@ const CalendarView = () => {
                   </PopoverContent>
                 </Popover>
               )}
-              {selectedDateObj && (
+              {selectedDateObj && !isAddingEntry && (
                 <Button 
                   variant="ghost" 
                   size="icon" 
                   onClick={() => navigate(`/today?date=${toLocalDateISO(selectedDateObj)}`)}
-                  title="Editar este día"
+                  title="Ver vista completa (Hoy)"
                 >
-                  <Pencil className="w-4 h-4" />
+                  <ExternalLink className="w-4 h-4" />
+                </Button>
+              )}
+              {selectedDateObj && (
+                <Button 
+                  variant="default" 
+                  size="sm" 
+                  className="ml-2 gap-1"
+                  onClick={() => setIsAddingEntry(!isAddingEntry)}
+                  title={isAddingEntry ? "Volver" : "Añadir alimento"}
+                >
+                  {isAddingEntry ? <ArrowLeft className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
+                  {!isAddingEntry && <span>Añadir</span>}
                 </Button>
               )}
             </div>
           </DialogHeader>
           
-          <ScrollArea className="max-h-[60vh]">
+          {isAddingEntry ? (
+            <div className="space-y-4 py-2">
+               <div className="space-y-2">
+                 <Label>Buscar alimento</Label>
+                 <div className="relative">
+                   <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                   <Input 
+                     placeholder="Ej: Manzana" 
+                     className="pl-8"
+                     value={searchTerm}
+                     onChange={(e) => setSearchTerm(e.target.value)}
+                     autoFocus
+                   />
+                   {suggestions.length > 0 && (
+                     <div className="absolute z-10 w-full bg-popover border rounded-md shadow-md mt-1 max-h-40 overflow-y-auto">
+                       {suggestions.map(food => (
+                         <button
+                           key={food.id}
+                           className="w-full text-left px-3 py-2 text-sm hover:bg-accent hover:text-accent-foreground transition-colors"
+                           onClick={() => {
+                             setSelectedFood(food);
+                             setSuggestions([]);
+                             setSearchTerm(food.name);
+                           }}
+                         >
+                           {food.name} ({Math.round(food.nutritionPer100.kcal)} kcal)
+                         </button>
+                       ))}
+                     </div>
+                   )}
+                 </div>
+               </div>
+
+               {selectedFood && (
+                 <div className="space-y-4 border rounded-md p-3 bg-muted/20 animate-in fade-in slide-in-from-top-2">
+                    <div className="flex justify-between items-center">
+                      <span className="font-medium">{selectedFood.name}</span>
+                      <Badge variant="outline">{Math.round(selectedFood.nutritionPer100.kcal)} kcal/100g</Badge>
+                    </div>
+                    
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label>Cantidad (g)</Label>
+                        <Input 
+                          type="number" 
+                          value={quantity} 
+                          onChange={(e) => setQuantity(e.target.value)} 
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Comida</Label>
+                        <Select value={mealType} onValueChange={(v: any) => setMealType(v)}>
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="breakfast">Desayuno</SelectItem>
+                            <SelectItem value="lunch">Comida</SelectItem>
+                            <SelectItem value="dinner">Cena</SelectItem>
+                            <SelectItem value="snack">Snack</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+
+                    <Button className="w-full" onClick={handleAddEntry}>
+                      <Plus className="w-4 h-4 mr-2" />
+                      Añadir registro
+                    </Button>
+                 </div>
+               )}
+            </div>
+          ) : (
+            <ScrollArea className="max-h-[60vh]">
             {selectedDayEntries.length > 0 ? (
               <div className="space-y-6 pr-4">
                 {(['breakfast', 'lunch', 'dinner', 'snack'] as const).map((type) => {
@@ -260,7 +445,7 @@ const CalendarView = () => {
                           {MEAL_LABELS[type]}
                         </div>
                         <Badge variant="secondary" className="text-xs h-5">
-                          {typeTotalKcal} kcal
+                          {Number(typeTotalKcal.toFixed(1))} kcal
                         </Badge>
                       </div>
                       <div className="pl-2 border-l-2 border-muted ml-1">
@@ -276,11 +461,22 @@ const CalendarView = () => {
                                     {item.name}
                                   </span>
                                 </div>
-                                {item.kcal && item.kcal > 0 ? (
-                                  <span className="text-xs text-muted-foreground ml-2 shrink-0 tabular-nums">
-                                    {item.kcal}
-                                  </span>
-                                ) : null}
+                                <div className="flex items-center gap-2">
+                                  {item.kcal && item.kcal > 0 ? (
+                                    <span className="text-xs text-muted-foreground shrink-0 tabular-nums">
+                                      {Number(item.kcal.toFixed(1))}
+                                    </span>
+                                  ) : null}
+                                  <Button 
+                                    variant="ghost" 
+                                    size="icon" 
+                                    className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+                                    onClick={() => handleDeleteEntry(entry.id)}
+                                    title="Eliminar registro"
+                                  >
+                                    <Trash2 className="w-3 h-3 text-destructive" />
+                                  </Button>
+                                </div>
                               </div>
                             ))}
                           </div>
@@ -296,6 +492,7 @@ const CalendarView = () => {
               </div>
             )}
           </ScrollArea>
+          )}
         </DialogContent>
       </Dialog>
     </div>

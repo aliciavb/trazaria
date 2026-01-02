@@ -139,9 +139,11 @@ export interface ExtractedNutrition {
   kcal?: number;
   protein?: number;
   fat?: number;
+  saturatedFat?: number;
   carbs?: number;
   sugar?: number;
   fiber?: number;
+  salt?: number;
 }
 
 export function extractNutritionFromText(text: string): ExtractedNutrition {
@@ -163,9 +165,15 @@ export function extractNutritionFromText(text: string): ExtractedNutrition {
   }
   
   // Extract fat - look for "Grasas: 33,5 g" or "Lípidos: 33,5 g"
-  const fatMatch = text.match(/(?:grasas?|l[íi]pidos?)[:\s]+(\d+(?:[,.]\d+)?)\s*g/i);
+  const fatMatch = text.match(/(?:grasas?|l[íi]pidos?)(?!\s+saturadas?)[:\s]+(\d+(?:[,.]\d+)?)\s*g/i);
   if (fatMatch) {
     result.fat = parseDecimal(fatMatch[1]);
+  }
+
+  // Extract saturated fat - look for "de las cuales saturadas: 12 g"
+  const satFatMatch = text.match(/(?:de las cuales\s+)?(?:saturadas?|ácidos grasos saturados?)[^:]*:[^\d]*(\d+(?:[,.]\d+)?)\s*g/i);
+  if (satFatMatch) {
+    result.saturatedFat = parseDecimal(satFatMatch[1]);
   }
   
   // Extract carbs - look for "Hidratos de carbono: 41,2 g"
@@ -184,6 +192,12 @@ export function extractNutritionFromText(text: string): ExtractedNutrition {
   const fiberMatch = text.match(/fibra[^:]*:[^\d]*(\d+(?:[,.]\d+)?)\s*g/i);
   if (fiberMatch) {
     result.fiber = parseDecimal(fiberMatch[1]);
+  }
+
+  // Extract salt - look for "Sal: 1,2 g"
+  const saltMatch = text.match(/sal[^:]*:[^\d]*(\d+(?:[,.]\d+)?)\s*g/i);
+  if (saltMatch) {
+    result.salt = parseDecimal(saltMatch[1]);
   }
   
   return result;

@@ -13,6 +13,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -39,10 +40,17 @@ import {
   Edit, 
   Copy, 
   Trash2,
-  AlertCircle
+  AlertCircle,
+  Info
 } from 'lucide-react';
 import BottomNav from '@/components/BottomNav';
 import { useToast } from '@/hooks/use-toast';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 
 const CATEGORIES = [
   'Lácteos',
@@ -231,6 +239,7 @@ const Database = () => {
         kcal: 0,
         carbs: 0,
         fat: 0,
+        saturatedFat: 0,
         protein: 0,
         fiber: 0,
         sugar: 0,
@@ -277,41 +286,39 @@ const Database = () => {
       <div className="min-h-screen bg-background p-4 pb-24">
         <div className="max-w-4xl mx-auto space-y-6">
           <div className="text-center space-y-2">
-            <div className="inline-flex items-center justify-center w-14 h-14 rounded-full bg-gradient-warm mb-2">
-              <DatabaseIcon className="w-7 h-7 text-primary" />
-            </div>
             <h1 className="text-3xl font-bold text-foreground">Base de datos</h1>
-            <p className="text-muted-foreground">
-              Tu biblioteca personal de alimentos y equivalencias
-            </p>
-          </div>
-
-          {/* Banner informativo sobre origen de datos */}
-          <Card className="p-4 bg-blue-500/5 border-blue-500/20">
-            <div className="flex gap-3">
-              <AlertCircle className="w-5 h-5 text-blue-500 flex-shrink-0 mt-0.5" />
-              <div className="space-y-2 text-sm">
-                <p className="font-medium text-foreground">
-                  Origen de los datos
-                </p>
-                <p className="text-muted-foreground">
-                  Trazaria incluye ~50 alimentos básicos extraídos de{' '}
-                  <a 
-                    href="https://www.bedca.net/" 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    className="text-blue-500 hover:underline font-medium"
-                  >
-                    BEDCA
-                  </a>
-                  , la base de datos pública del Ministerio de Ciencia. Los valores nutricionales pueden tener una variabilidad del 10-20% según el alimento.
-                </p>
-                <p className="text-muted-foreground">
-                  Puedes <strong>añadir, modificar o eliminar</strong> cualquier alimento.
-                </p>
-              </div>
+            <div className="flex items-center justify-center gap-2 text-muted-foreground">
+              <p>Tu biblioteca personal de alimentos y equivalencias</p>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <button type="button" className="hover:text-foreground transition-colors">
+                    <Info className="w-4 h-4" />
+                    <span className="sr-only">Información sobre los datos</span>
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent className="max-w-xs p-4 text-sm" side="bottom">
+                  <div className="space-y-2">
+                    <p className="font-semibold">Origen de los datos</p>
+                    <p>
+                      Trazaria incluye ~50 alimentos básicos extraídos de{' '}
+                      <a 
+                        href="https://www.bedca.net/" 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="text-blue-500 hover:underline font-medium"
+                      >
+                        BEDCA
+                      </a>
+                      , la base de datos pública del Ministerio de Ciencia. Los valores nutricionales pueden tener una variabilidad del 10-20% según el alimento.
+                    </p>
+                    <p>
+                      Puedes <strong>añadir, modificar o eliminar</strong> cualquier alimento.
+                    </p>
+                  </div>
+                </PopoverContent>
+              </Popover>
             </div>
-          </Card>
+          </div>
 
           <Tabs defaultValue="foods" className="w-full">
             <TabsList className="grid w-full grid-cols-2">
@@ -350,93 +357,76 @@ const Database = () => {
                 </div>
               </Card>
 
-              <div className="grid gap-3">
-                {filteredFoods.length === 0 ? (
-                  <Card className="p-8 text-center bg-gradient-card">
-                    <AlertCircle className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
-                    <p className="text-muted-foreground">
-                      No se encontraron alimentos
-                    </p>
-                  </Card>
-                ) : (
-                  filteredFoods.map((food) => (
-                    <Card key={food.id} className="p-4 bg-gradient-card hover:shadow-elevated transition-shadow">
-                      <div className="flex items-start gap-4">
-                        <div className="flex-1 space-y-2">
-                          <div className="flex items-start justify-between gap-2">
-                            <div>
-                              <h3 className="font-semibold text-lg">{food.name}</h3>
-                              {food.brand && (
-                                <p className="text-sm text-muted-foreground">{food.brand}</p>
-                              )}
-                            </div>
-                            <div className="flex gap-1">
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => openEditFood(food)}
-                              >
-                                <Edit className="w-4 h-4" />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => handleDuplicateFood(food)}
-                              >
-                                <Copy className="w-4 h-4" />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => setDeleteFood(food)}
-                              >
-                                <Trash2 className="w-4 h-4 text-destructive" />
-                              </Button>
-                            </div>
-                          </div>
-
-                          <div className="flex gap-2 flex-wrap">
-                            <Badge variant="secondary">{food.category}</Badge>
-                            {food.source === 'BEDCA' && (
-                              <Badge variant="outline" className="bg-blue-500/10 text-blue-600 border-blue-500/20">
-                                📚 BEDCA
-                              </Badge>
-                            )}
-                            {food.source === 'barcode' && (
-                              <Badge variant="outline" className="bg-green-500/10 text-green-600 border-green-500/20">
-                                🏷️ Open Food Facts
-                              </Badge>
-                            )}
-                            {food.source === 'custom' && (
-                              <Badge variant="outline" className="bg-purple-500/10 text-purple-600 border-purple-500/20">
-                                ✏️ Personalizado
-                              </Badge>
-                            )}
-                          </div>
-
-                          <div className="grid grid-cols-4 gap-2 text-sm pt-2">
-                            <div>
-                              <p className="text-muted-foreground text-xs">Kcal</p>
-                              <p className="font-semibold">{food.nutritionPer100.kcal}</p>
-                            </div>
-                            <div>
-                              <p className="text-muted-foreground text-xs">Proteína</p>
-                              <p className="font-semibold">{food.nutritionPer100.protein}g</p>
-                            </div>
-                            <div>
-                              <p className="text-muted-foreground text-xs">Carbohidratos</p>
-                              <p className="font-semibold">{food.nutritionPer100.carbs}g</p>
-                            </div>
-                            <div>
-                              <p className="text-muted-foreground text-xs">Grasas</p>
-                              <p className="font-semibold">{food.nutritionPer100.fat}g</p>
-                            </div>
+              <div className="border rounded-md overflow-hidden bg-card">
+                <div className="grid grid-cols-[1fr_80px_110px] sm:grid-cols-[1fr_80px_140px_100px_110px] gap-2 p-3 bg-muted/50 text-xs font-medium text-muted-foreground border-b">
+                  <div>Nombre</div>
+                  <div>Kcal</div>
+                  <div className="hidden sm:block">Categoría</div>
+                  <div className="hidden sm:block">Origen</div>
+                  <div className="text-right">Acciones</div>
+                </div>
+                
+                <div className="divide-y">
+                  {filteredFoods.length === 0 ? (
+                    <div className="p-8 text-center">
+                      <AlertCircle className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
+                      <p className="text-muted-foreground">
+                        No se encontraron alimentos
+                      </p>
+                    </div>
+                  ) : (
+                    filteredFoods.map((food) => (
+                      <div key={food.id} className="grid grid-cols-[1fr_80px_110px] sm:grid-cols-[1fr_80px_140px_100px_110px] gap-2 p-3 items-center hover:bg-muted/50 transition-colors text-sm group">
+                        <div className="min-w-0 pr-2">
+                          <div className="font-medium truncate">
+                            {food.name}
+                            {food.brand && <span className="text-muted-foreground font-normal ml-1">({food.brand})</span>}
                           </div>
                         </div>
+                        
+                        <div className="font-medium tabular-nums">
+                          {food.nutritionPer100.kcal}
+                        </div>
+
+                        <div className="hidden sm:block text-muted-foreground truncate text-xs">
+                          {food.category}
+                        </div>
+
+                        <div className="hidden sm:block text-muted-foreground truncate text-xs">
+                          {food.source === 'BEDCA' ? 'BEDCA' : 
+                           food.source === 'barcode' ? 'OpenFoodFacts' : 'Personalizado'}
+                        </div>
+
+                        <div className="flex items-center justify-end gap-1">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                            onClick={() => openEditFood(food)}
+                          >
+                            <Edit className="w-3.5 h-3.5" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                            onClick={() => handleDuplicateFood(food)}
+                          >
+                            <Copy className="w-3.5 h-3.5" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                            onClick={() => setDeleteFood(food)}
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </Button>
+                        </div>
                       </div>
-                    </Card>
-                  ))
-                )}
+                    ))
+                  )}
+                </div>
               </div>
             </TabsContent>
 
@@ -554,9 +544,9 @@ const Database = () => {
             <div className="space-y-3">
               <Label className="text-base font-semibold">Valores nutricionales (por 100g/ml)</Label>
               
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-2">
-                  <Label>Calorías (kcal) *</Label>
+              <div className="border rounded-md divide-y text-sm">
+                <div className="grid grid-cols-[2fr_1fr] items-center p-3 bg-muted/30">
+                  <Label className="font-semibold truncate leading-relaxed">Valor Energético (kcal) *</Label>
                   <Input
                     type="number"
                     step="0.1"
@@ -568,40 +558,13 @@ const Database = () => {
                         kcal: parseFloat(e.target.value) || 0
                       }
                     })}
+                    placeholder="0"
+                    className="h-8 text-right border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 p-0 placeholder:text-muted-foreground/50"
                   />
                 </div>
-                <div className="space-y-2">
-                  <Label>Proteína (g) *</Label>
-                  <Input
-                    type="number"
-                    step="0.1"
-                    value={foodForm.nutritionPer100?.protein || ''}
-                    onChange={(e) => setFoodForm({
-                      ...foodForm,
-                      nutritionPer100: {
-                        ...foodForm.nutritionPer100!,
-                        protein: parseFloat(e.target.value) || 0
-                      }
-                    })}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Carbohidratos (g) *</Label>
-                  <Input
-                    type="number"
-                    step="0.1"
-                    value={foodForm.nutritionPer100?.carbs || ''}
-                    onChange={(e) => setFoodForm({
-                      ...foodForm,
-                      nutritionPer100: {
-                        ...foodForm.nutritionPer100!,
-                        carbs: parseFloat(e.target.value) || 0
-                      }
-                    })}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Grasas (g) *</Label>
+
+                <div className="grid grid-cols-[2fr_1fr] items-center p-3">
+                  <Label className="font-medium truncate leading-relaxed">Grasas (g)</Label>
                   <Input
                     type="number"
                     step="0.1"
@@ -613,25 +576,49 @@ const Database = () => {
                         fat: parseFloat(e.target.value) || 0
                       }
                     })}
+                    placeholder="0"
+                    className="h-8 text-right border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 p-0 placeholder:text-muted-foreground/50"
                   />
                 </div>
-                <div className="space-y-2">
-                  <Label>Fibra (g)</Label>
+
+                <div className="grid grid-cols-[2fr_1fr] items-center p-3 pl-6 bg-muted/10">
+                  <Label className="text-muted-foreground font-normal truncate leading-relaxed">de las cuales saturadas (g)</Label>
                   <Input
                     type="number"
                     step="0.1"
-                    value={foodForm.nutritionPer100?.fiber || ''}
+                    value={foodForm.nutritionPer100?.saturatedFat || ''}
                     onChange={(e) => setFoodForm({
                       ...foodForm,
                       nutritionPer100: {
                         ...foodForm.nutritionPer100!,
-                        fiber: parseFloat(e.target.value) || 0
+                        saturatedFat: parseFloat(e.target.value) || 0
                       }
                     })}
+                    placeholder="0"
+                    className="h-8 text-right border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 p-0 placeholder:text-muted-foreground/50"
                   />
                 </div>
-                <div className="space-y-2">
-                  <Label>Azúcares (g)</Label>
+
+                <div className="grid grid-cols-[2fr_1fr] items-center p-3">
+                  <Label className="font-medium truncate leading-relaxed">Hidratos de carbono (g)</Label>
+                  <Input
+                    type="number"
+                    step="0.1"
+                    value={foodForm.nutritionPer100?.carbs || ''}
+                    onChange={(e) => setFoodForm({
+                      ...foodForm,
+                      nutritionPer100: {
+                        ...foodForm.nutritionPer100!,
+                        carbs: parseFloat(e.target.value) || 0
+                      }
+                    })}
+                    placeholder="0"
+                    className="h-8 text-right border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 p-0 placeholder:text-muted-foreground/50"
+                  />
+                </div>
+
+                <div className="grid grid-cols-[2fr_1fr] items-center p-3 pl-6 bg-muted/10">
+                  <Label className="text-muted-foreground font-normal truncate leading-relaxed">de los cuales azúcares (g)</Label>
                   <Input
                     type="number"
                     step="0.1"
@@ -643,6 +630,62 @@ const Database = () => {
                         sugar: parseFloat(e.target.value) || 0
                       }
                     })}
+                    placeholder="0"
+                    className="h-8 text-right border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 p-0 placeholder:text-muted-foreground/50"
+                  />
+                </div>
+
+                <div className="grid grid-cols-[2fr_1fr] items-center p-3">
+                  <Label className="font-medium truncate leading-relaxed">Fibra alimentaria (g)</Label>
+                  <Input
+                    type="number"
+                    step="0.1"
+                    value={foodForm.nutritionPer100?.fiber || ''}
+                    onChange={(e) => setFoodForm({
+                      ...foodForm,
+                      nutritionPer100: {
+                        ...foodForm.nutritionPer100!,
+                        fiber: parseFloat(e.target.value) || 0
+                      }
+                    })}
+                    placeholder="0"
+                    className="h-8 text-right border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 p-0 placeholder:text-muted-foreground/50"
+                  />
+                </div>
+
+                <div className="grid grid-cols-[2fr_1fr] items-center p-3">
+                  <Label className="font-medium truncate leading-relaxed">Proteínas (g)</Label>
+                  <Input
+                    type="number"
+                    step="0.1"
+                    value={foodForm.nutritionPer100?.protein || ''}
+                    onChange={(e) => setFoodForm({
+                      ...foodForm,
+                      nutritionPer100: {
+                        ...foodForm.nutritionPer100!,
+                        protein: parseFloat(e.target.value) || 0
+                      }
+                    })}
+                    placeholder="0"
+                    className="h-8 text-right border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 p-0 placeholder:text-muted-foreground/50"
+                  />
+                </div>
+
+                <div className="grid grid-cols-[2fr_1fr] items-center p-3">
+                  <Label className="font-medium truncate leading-relaxed">Sal (g)</Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    value={foodForm.nutritionPer100?.salt || ''}
+                    onChange={(e) => setFoodForm({
+                      ...foodForm,
+                      nutritionPer100: {
+                        ...foodForm.nutritionPer100!,
+                        salt: parseFloat(e.target.value) || 0
+                      }
+                    })}
+                    placeholder="0"
+                    className="h-8 text-right border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 p-0 placeholder:text-muted-foreground/50"
                   />
                 </div>
               </div>

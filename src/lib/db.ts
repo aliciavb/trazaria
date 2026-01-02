@@ -11,6 +11,7 @@ export interface FoodItem {
     kcal: number;
     carbs: number;
     fat: number;
+    saturatedFat?: number;
     protein: number;
     fiber?: number;
     sugar?: number;
@@ -75,7 +76,11 @@ export interface Entry {
     kcal?: number;
     carbs?: number;
     fat?: number;
+    saturatedFat?: number;
     protein?: number;
+    fiber?: number;
+    sugar?: number;
+    salt?: number;
   }>;
   totalKcal?: number;
   notes?: string;
