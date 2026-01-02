@@ -40,6 +40,7 @@ const Settings = () => {
   const [sex, setSex] = useState<'male' | 'female' | 'non-binary' | 'prefer-not-to-say'>('female');
   const [height, setHeight] = useState('');
   const [weight, setWeight] = useState('');
+  const [city, setCity] = useState('');
   const [activityLevel, setActivityLevel] = useState<'sedentary' | 'light' | 'moderate' | 'active' | 'very-active'>('moderate');
   const [goal, setGoal] = useState<'lose' | 'maintain' | 'gain'>('maintain');
 
@@ -59,6 +60,7 @@ const Settings = () => {
       setSex(p.sex);
       setHeight(p.height.toString());
       setWeight(p.weight.toString());
+      setCity(p.city || '');
       setActivityLevel(p.activityLevel);
       setGoal(p.goal);
     }
@@ -98,10 +100,11 @@ const Settings = () => {
     try {
       await db.profile.clear();
       await db.profile.add({
-        id: 'main',
+        id: 'user-profile',
         ...newProfile,
         dailyKcal: calculatedCalories,
         manualKcal: useManualKcal ? parseInt(manualKcal) : undefined,
+        city: city || undefined,
         createdAt: new Date().toISOString(),
       });
 
@@ -393,6 +396,17 @@ const Settings = () => {
                   placeholder="65"
                 />
               </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="city">Ciudad (opcional)</Label>
+              <Input
+                id="city"
+                type="text"
+                value={city}
+                onChange={(e) => setCity(e.target.value)}
+                placeholder="Ej: Madrid"
+              />
             </div>
 
             <div className="space-y-2">

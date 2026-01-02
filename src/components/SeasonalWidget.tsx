@@ -4,9 +4,10 @@ import { Leaf, Carrot, Apple } from 'lucide-react';
 
 interface SeasonalWidgetProps {
   date?: Date;
+  city?: string;
 }
 
-const SeasonalWidget = ({ date = new Date() }: SeasonalWidgetProps) => {
+const SeasonalWidget = ({ date = new Date(), city }: SeasonalWidgetProps) => {
   const { fruits, vegetables } = getSeasonalProduce(date);
   const monthName = date.toLocaleDateString('es-ES', { month: 'long' });
 
@@ -15,8 +16,8 @@ const SeasonalWidget = ({ date = new Date() }: SeasonalWidgetProps) => {
       {/* Header estilo "Cinta adhesiva" o cabecera de libreta */}
       <div className="bg-[#e8e4d9] p-3 border-b border-[#d6d3c9] flex items-center gap-2">
         <Leaf className="w-4 h-4 text-green-700" />
-        <h3 className="font-serif text-sm font-bold text-stone-700 uppercase tracking-wider">
-          De temporada en {monthName}
+        <h3 className="font-sans text-sm font-bold text-stone-700 tracking-wide">
+          De temporada en {monthName} {city ? `en ${city}` : ''}
         </h3>
       </div>
 
@@ -27,7 +28,7 @@ const SeasonalWidget = ({ date = new Date() }: SeasonalWidgetProps) => {
             <Apple className="w-4 h-4" />
             <span className="text-xs font-bold uppercase tracking-wide font-sans">Frutas</span>
           </div>
-          <p className="text-sm leading-relaxed">
+          <p className="text-sm leading-relaxed font-sans text-stone-600">
             {fruits.join(', ')}.
           </p>
         </div>
@@ -38,7 +39,7 @@ const SeasonalWidget = ({ date = new Date() }: SeasonalWidgetProps) => {
             <Carrot className="w-4 h-4" />
             <span className="text-xs font-bold uppercase tracking-wide font-sans">Verduras</span>
           </div>
-          <p className="text-sm leading-relaxed">
+          <p className="text-sm leading-relaxed font-sans text-stone-600">
             {vegetables.join(', ')}.
           </p>
         </div>

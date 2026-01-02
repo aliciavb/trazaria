@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -128,11 +128,7 @@ const CalendarView = () => {
     }
   };
 
-  useEffect(() => {
-    loadMonthEntries();
-  }, [currentDate]);
-
-  const loadMonthEntries = async () => {
+  const loadMonthEntries = useCallback(async () => {
     const year = currentDate.getFullYear();
     const month = currentDate.getMonth();
     
@@ -146,7 +142,11 @@ const CalendarView = () => {
       .toArray();
     
     setEntries(allEntries);
-  };
+  }, [currentDate]);
+
+  useEffect(() => {
+    loadMonthEntries();
+  }, [loadMonthEntries]);
 
   const getDaysInMonth = () => {
     const year = currentDate.getFullYear();
@@ -405,7 +405,7 @@ const CalendarView = () => {
                       </div>
                       <div className="space-y-2">
                         <Label>Comida</Label>
-                        <Select value={mealType} onValueChange={(v: any) => setMealType(v)}>
+                        <Select value={mealType} onValueChange={(v) => setMealType(v as 'breakfast' | 'lunch' | 'dinner' | 'snack')}>
                           <SelectTrigger>
                             <SelectValue />
                           </SelectTrigger>

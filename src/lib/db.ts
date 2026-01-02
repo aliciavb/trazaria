@@ -60,28 +60,31 @@ export interface UserProfile {
   activityLevel: 'sedentary' | 'light' | 'moderate' | 'active' | 'very-active';
   dailyKcal: number;
   manualKcal?: number; // If set, overrides calculated dailyKcal
+  city?: string;
   createdAt: string;
+}
+
+export interface EntryItem {
+  foodId?: string;
+  name: string;
+  qty: number;
+  unit: string;
+  kcal?: number;
+  carbs?: number;
+  fat?: number;
+  saturatedFat?: number;
+  protein?: number;
+  fiber?: number;
+  sugar?: number;
+  salt?: number;
 }
 
 export interface Entry {
   id?: string;
   dateISO: string;
   time?: string; // HH:MM format
-  type: 'breakfast' | 'lunch' | 'dinner' | 'snack' | 'activity';
-  items: Array<{
-    foodId?: string;
-    name: string;
-    qty: number;
-    unit: string;
-    kcal?: number;
-    carbs?: number;
-    fat?: number;
-    saturatedFat?: number;
-    protein?: number;
-    fiber?: number;
-    sugar?: number;
-    salt?: number;
-  }>;
+  type: 'breakfast' | 'lunch' | 'dinner' | 'snack' | 'activity' | 'checkin';
+  items: EntryItem[];
   totalKcal?: number;
   notes?: string;
   mood?: string;

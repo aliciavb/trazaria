@@ -26,6 +26,7 @@ const Onboarding = () => {
   const [sex, setSex] = useState<'male' | 'female' | 'non-binary' | 'prefer-not-to-say'>('prefer-not-to-say');
   const [height, setHeight] = useState('');
   const [weight, setWeight] = useState('');
+  const [city, setCity] = useState('');
   const [goal, setGoal] = useState<'lose' | 'maintain' | 'gain'>('maintain');
   const [activityLevel, setActivityLevel] = useState<'sedentary' | 'light' | 'moderate' | 'active' | 'very-active'>('moderate');
 
@@ -56,6 +57,7 @@ const Onboarding = () => {
         goal,
         activityLevel,
         dailyKcal,
+        city: city || undefined,
         createdAt: new Date().toISOString(),
       };
 
@@ -158,6 +160,17 @@ const Onboarding = () => {
                   onChange={(e) => setWeight(e.target.value)}
                   min="30"
                   max="300"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="city">Ciudad (opcional)</Label>
+                <Input
+                  id="city"
+                  type="text"
+                  placeholder="Ej: Madrid"
+                  value={city}
+                  onChange={(e) => setCity(e.target.value)}
                 />
               </div>
             </div>

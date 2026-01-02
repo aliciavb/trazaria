@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -40,6 +40,18 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/co
 import SeasonalWidget from '@/components/SeasonalWidget';
 import AtmosphereWidget from '@/components/AtmosphereWidget';
 
+type EntryItem = Entry['items'][number];
+
+interface EditingItem extends Omit<EntryItem, 'qty' | 'kcal'> {
+  qty: number | string;
+  kcal: number | string;
+  _kcalPerUnit?: number;
+}
+
+interface EditingEntry extends Omit<Entry, 'items'> {
+  items: EditingItem[];
+}
+
 const MEAL_ICONS = {
   breakfast: Coffee,
   lunch: Apple,
@@ -79,53 +91,10 @@ const Today = () => {
   const [loading, setLoading] = useState(true);
   const [deleteDialog, setDeleteDialog] = useState<string | null>(null);
   const [foodNames, setFoodNames] = useState<Record<string, string>>({});
-  const [dayHunger, setDayHunger] = useState<'very-hungry' | 'hungry' | 'satisfied' | 'full' | 'very-full' | null>(null);
-  const [editingEntry, setEditingEntry] = useState<any | null>(null);
+  const [editingEntry, setEditingEntry] = useState<EditingEntry | null>(null);
   const { toast } = useToast();
 
-  useEffect(() => {
-    loadTodayData();
-  }, [dateParam]);
-
-  const handleSaveEdit = async () => {
-    if (!editingEntry || !editingEntry.id) return;
-
-    try {
-      // Recalculate total calories
-      const totalKcal = editingEntry.items.reduce((sum: number, item: any) => sum + (parseFloat(item.kcal) || 0), 0);
-      
-      // Clean up internal properties and ensure numbers
-      const cleanItems = editingEntry.items.map((item: any) => {
-        const { _kcalPerUnit, ...rest } = item;
-        return {
-          ...rest,
-          qty: parseFloat(item.qty) || 0,
-          kcal: parseFloat(item.kcal) || 0,
-        };
-      });
-
-      const updatedEntry = { ...editingEntry, items: cleanItems, totalKcal };
-
-      await db.entries.put(updatedEntry);
-
-      toast({
-        title: '✓ Actualizado',
-        description: 'Entrada actualizada correctamente',
-      });
-
-      setEditingEntry(null);
-      await loadTodayData();
-    } catch (error) {
-      console.error(error);
-      toast({
-        title: 'Error',
-        description: 'No se pudo actualizar la entrada',
-        variant: 'destructive',
-      });
-    }
-  };
-
-  const loadTodayData = async () => {
+  const loadTodayData = useCallback(async () => {
     const today = dateParam || getTodayDateISO(); // FIX: Usar fecha local
     
     const allEntries = await db.entries.where('dateISO').equals(today).toArray();
@@ -146,7 +115,103 @@ const Today = () => {
     setFoodNames(names);
     
     setLoading(false);
+  }, [dateParam]);
+
+  useEffect(() => {
+    loadTodayData();
+  }, [loadTodayData]);
+
+  const handleCheckIn = async (satiety: 'very-hungry' | 'hungry' | 'satisfied' | 'full' | 'very-full') => {
+    try {
+      const now = new Date();
+      const timeStr = now.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+      
+      const newEntry: Entry = {
+        id: `checkin-${now.getTime()}`,
+        dateISO: getTodayDateISO(),
+        time: timeStr,
+        type: 'checkin',
+        items: [],
+        wellbeing: {
+          hunger: satiety
+        }
+      };
+
+      await db.entries.add(newEntry);
+      
+      toast({
+        title: 'Guardado',
+        description: 'Tu nivel de saciedad ha sido guardado.',
+      });
+      
+      await loadTodayData();
+    } catch (error) {
+      console.error(error);
+      toast({
+        title: 'Error',
+        description: 'No se pudo guardar el registro',
+        variant: 'destructive',
+      });
+    }
   };
+
+  const handleUndoCheckIn = async (entryId: string) => {
+    try {
+      await db.entries.delete(entryId);
+      toast({
+        title: 'Deshecho',
+        description: 'Registro de saciedad eliminado.',
+      });
+      await loadTodayData();
+    } catch (error) {
+      console.error(error);
+      toast({
+        title: 'Error',
+        description: 'No se pudo eliminar el registro',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editingEntry || !editingEntry.id) return;
+
+    try {
+      // Recalculate total calories
+      const totalKcal = editingEntry.items.reduce((sum: number, item: EditingItem) => sum + (Number(item.kcal) || 0), 0);
+      
+      // Clean up internal properties and ensure numbers
+      const cleanItems = editingEntry.items.map((item: EditingItem) => {
+        const { _kcalPerUnit, ...rest } = item;
+        return {
+          ...rest,
+          qty: Number(item.qty) || 0,
+          kcal: Number(item.kcal) || 0,
+        };
+      });
+
+      const updatedEntry = { ...editingEntry, items: cleanItems, totalKcal } as Entry;
+
+      await db.entries.put(updatedEntry);
+
+      toast({
+        title: '✓ Actualizado',
+        description: 'Entrada actualizada correctamente',
+      });
+
+      setEditingEntry(null);
+      await loadTodayData();
+    } catch (error) {
+      console.error(error);
+      toast({
+        title: 'Error',
+        description: 'No se pudo actualizar la entrada',
+        variant: 'destructive',
+      });
+    }
+  };
+
+
 
   const handleDelete = async (entryId: string) => {
     try {
@@ -305,6 +370,17 @@ const Today = () => {
     <>
       <div className="min-h-screen bg-background p-4 pb-24">
         <div className="max-w-5xl mx-auto space-y-6">
+          {/* Mobile Widget */}
+          <div className="lg:hidden">
+             <AtmosphereWidget 
+               entries={entries} 
+               onCheckIn={handleCheckIn} 
+               onUndoCheckIn={handleUndoCheckIn}
+               isToday={!dateParam || dateParam === getTodayDateISO()} 
+               city={profile?.city}
+             />
+          </div>
+
           <div className="flex items-center justify-between">
             <div className="space-y-1">
               <div className="flex items-center gap-3">
@@ -432,7 +508,7 @@ const Today = () => {
                                       <DropdownMenuItem onClick={() => {
                                         const entryToEdit = JSON.parse(JSON.stringify(entry));
                                         // Calculate and store density for each item to allow safe editing
-                                        entryToEdit.items = entryToEdit.items.map((item: any) => ({
+                                        entryToEdit.items = entryToEdit.items.map((item: EntryItem) => ({
                                           ...item,
                                           _kcalPerUnit: (item.kcal && item.qty) ? item.kcal / item.qty : 0
                                         }));
@@ -471,80 +547,24 @@ const Today = () => {
                 </div>
               )}
 
-              {/* Bienestar del día */}
-              {entries.length > 0 && (
-                <Card className="p-6 bg-gradient-card shadow-card">
-                  <div className="space-y-4">
-                    <div>
-                      <h3 className="font-semibold mb-2">¿Cómo te has sentido hoy?</h3>
-                      <p className="text-sm text-muted-foreground mb-4">
-                        Nivel de saciedad después de tus comidas
-                      </p>
-                    </div>
-
-                    <div className="grid grid-cols-5 gap-2">
-                      <Button
-                        variant={dayHunger === 'very-hungry' ? 'default' : 'outline'}
-                        className="flex-col h-auto py-3 px-1 min-h-[72px]"
-                        onClick={() => setDayHunger('very-hungry')}
-                      >
-                        <Frown className="w-6 h-6 mb-1 flex-shrink-0" />
-                        <span className="text-[10px] leading-tight text-center">Mucha hambre</span>
-                      </Button>
-
-                      <Button
-                        variant={dayHunger === 'hungry' ? 'default' : 'outline'}
-                        className="flex-col h-auto py-3 px-1 min-h-[72px]"
-                        onClick={() => setDayHunger('hungry')}
-                      >
-                        <Meh className="w-6 h-6 mb-1 flex-shrink-0" />
-                        <span className="text-[10px] leading-tight text-center">Algo de hambre</span>
-                      </Button>
-
-                      <Button
-                        variant={dayHunger === 'satisfied' ? 'default' : 'outline'}
-                        className="flex-col h-auto py-3 px-1 min-h-[72px]"
-                        onClick={() => setDayHunger('satisfied')}
-                      >
-                        <Smile className="w-6 h-6 mb-1 flex-shrink-0" />
-                        <span className="text-[10px] leading-tight text-center">Saciado</span>
-                      </Button>
-
-                      <Button
-                        variant={dayHunger === 'full' ? 'default' : 'outline'}
-                        className="flex-col h-auto py-3 px-1 min-h-[72px]"
-                        onClick={() => setDayHunger('full')}
-                      >
-                        <SmilePlus className="w-6 h-6 mb-1 flex-shrink-0" />
-                        <span className="text-[10px] leading-tight text-center">Lleno</span>
-                      </Button>
-
-                      <Button
-                        variant={dayHunger === 'very-full' ? 'default' : 'outline'}
-                        className="flex-col h-auto py-3 px-1 min-h-[72px]"
-                        onClick={() => setDayHunger('very-full')}
-                      >
-                        <Pizza className="w-6 h-6 mb-1 flex-shrink-0" />
-                        <span className="text-[10px] leading-tight text-center">Muy lleno</span>
-                      </Button>
-                    </div>
-
-                    {dayHunger && (
-                      <p className="text-xs text-center text-muted-foreground">
-                        ✓ Guardado automáticamente
-                      </p>
-                    )}
-                  </div>
-                </Card>
-              )}
+              {/* Bienestar del día - MOVED TO SIDEBAR */}
+              <SeasonalWidget 
+                date={dateParam ? new Date(dateParam) : new Date()} 
+                city={profile?.city}
+              />
             </div>
 
             {/* Sidebar - Calories (Desktop only) */}
             <div className="hidden lg:block space-y-6">
               <div className="sticky top-6 space-y-6">
-                <AtmosphereWidget />
+                <AtmosphereWidget 
+                  entries={entries} 
+                  onCheckIn={handleCheckIn} 
+                  onUndoCheckIn={handleUndoCheckIn}
+                  isToday={!dateParam || dateParam === getTodayDateISO()} 
+                  city={profile?.city}
+                />
                 <CalorieSummary />
-                <SeasonalWidget date={dateParam ? new Date(dateParam) : new Date()} />
               </div>
             </div>
           </div>
@@ -574,7 +594,7 @@ const Today = () => {
                   <select 
                     className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                     value={editingEntry.type}
-                    onChange={(e) => setEditingEntry({...editingEntry, type: e.target.value as any})}
+                    onChange={(e) => setEditingEntry({...editingEntry, type: e.target.value as 'breakfast' | 'lunch' | 'dinner' | 'snack'})}
                   >
                     <option value="breakfast">Desayuno</option>
                     <option value="lunch">Comida</option>
@@ -611,18 +631,18 @@ const Today = () => {
                             
                             // Use stored density (_kcalPerUnit) if available, otherwise fallback to current ratio
                             // Note: use parseFloat on item.kcal/qty in case they are strings currently
-                            const currentKcal = parseFloat(item.kcal) || 0;
-                            const currentQty = parseFloat(item.qty) || 0;
+                            const currentKcal = Number(item.kcal) || 0;
+                            const currentQty = Number(item.qty) || 0;
                             
-                            const density = (item as any)._kcalPerUnit !== undefined 
-                              ? (item as any)._kcalPerUnit 
+                            const density = item._kcalPerUnit !== undefined 
+                              ? item._kcalPerUnit 
                               : (currentQty > 0 ? currentKcal / currentQty : 0);
                             
                             const newKcal = Math.round(density * newQty);
                             
                             const newItems = [...editingEntry.items];
                             // Store rawValue to allow empty string input
-                            newItems[idx] = { ...item, qty: rawValue, kcal: newKcal };
+                            newItems[idx] = { ...item, qty: rawValue, kcal: newKcal } as EditingItem;
                             setEditingEntry({ ...editingEntry, items: newItems });
                           }}
                         />
@@ -649,10 +669,10 @@ const Today = () => {
                             const newItems = [...editingEntry.items];
                             
                             // Update density when manually changing kcal
-                            const currentQty = parseFloat(item.qty) || 0;
+                            const currentQty = Number(item.qty) || 0;
                             const newDensity = currentQty > 0 ? newKcal / currentQty : 0;
                             
-                            newItems[idx] = { ...item, kcal: rawValue, _kcalPerUnit: newDensity } as any;
+                            newItems[idx] = { ...item, kcal: rawValue, _kcalPerUnit: newDensity } as EditingItem;
                             setEditingEntry({ ...editingEntry, items: newItems });
                           }}
                         />
